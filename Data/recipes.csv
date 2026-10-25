@@ -1,0 +1,13 @@
+id,output,output_qty,station,inputs,time_sec,unlock
+r_stone_pickaxe,stone_pickaxe,1,ai_module|base_workbench,stone:1;branch:1,,auto
+r_stone_axe,stone_axe,1,ai_module|base_workbench,stone:1;branch:1,,auto
+r_bow,bow,1,ai_module|base_workbench,branch:1;plant_fiber:1,,auto
+r_arrow,arrow,1,ai_module|base_workbench,branch:1;stone:1,,auto
+r_heal_t0,heal_t0,1,ai_module|base_workbench,berry:1;plant_fiber:1,,auto
+r_iron_ingot,iron_ingot,1,smelter_simple,iron_ore:1,,on_obtain:iron_ore
+r_copper_ingot,copper_ingot,1,smelter_simple,copper_ore:1,,on_obtain:copper_ore
+r_iron_pickaxe,iron_pickaxe,1,base_workbench,iron_ingot:1;branch:1,,on_obtain:iron_ingot
+r_iron_axe,iron_axe,1,base_workbench,iron_ingot:1;branch:1,,on_obtain:iron_ingot
+r_basic_battery,basic_battery,1,base_workbench,copper_ingot:1;iron_ingot:1;coal:1,,on_obtain:copper_ingot
+r_basic_defibrillator,basic_defibrillator,1,base_workbench,iron_ingot:1;copper_ingot:1;basic_battery:1,,on_obtain:basic_battery
+r_communicator,communicator,1,base_workbench,basic_battery:1;copper_ingot:1;iron_ingot:1,,on_obtain:basic_battery

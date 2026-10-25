@@ -1,0 +1,22 @@
+id,name_ko,tier,category,stack,note
+branch,나뭇가지,0,resource,,발전 연료 겸용
+stone,돌,0,resource,,
+plant_fiber,식물 섬유,0,resource,,발전 연료 겸용
+berry,열매,0,food,,
+log,통나무,1,resource,,
+stone_block,석재,1,resource,,
+iron_ore,철광석,1,resource,,
+copper_ore,구리광석,1,resource,,
+coal,석탄,1,resource,,발전 연료
+iron_ingot,철 주괴,1,ingot,,
+copper_ingot,구리 주괴,1,ingot,,
+stone_pickaxe,돌곡괭이,0,tool,1,
+stone_axe,돌도끼,0,tool_weapon,1,채취·전투 겸용
+bow,활,0,weapon,1,
+arrow,화살,0,ammo,,소모 탄약
+heal_t0,HP 회복(T0형),0,consumable,,
+iron_pickaxe,철곡괭이,1,tool,1,
+iron_axe,철도끼,1,tool_weapon,1,채취·전투 겸용
+basic_battery,기본 배터리,1,battery,,
+basic_defibrillator,제세동기(기본),1,consumable,,T1 후반
+communicator,통신기,1,tool,1,T1 후반 배터리 이후

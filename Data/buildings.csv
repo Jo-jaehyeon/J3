@@ -1,0 +1,12 @@
+id,name_ko,tier,build_inputs,needs_power,unlock,note
+base,기지(작업대 포함),0,stone:1;branch:1;plant_fiber:1,false,auto,서버당 1개
+foundation,토대,0,stone:1,false,auto,4m x 4m (재료 임시)
+smelter_simple,간이 제련로,1,stone:1,false,on_obtain:iron_ore|copper_ore,연료로 가동
+miner_simple,간이 채굴기,1,stone:1;branch:1,false,on_obtain:iron_ore|copper_ore|coal,저장 100개
+generator_early,초기 발전소,1,copper_ingot:1;stone:1,false,on_obtain:copper_ingot,나뭇가지·식물 섬유도 연료
+power_wire,전기줄,1,copper_ingot:1,false,on_obtain:copper_ingot,
+power_pole,전신주,1,copper_ingot:1;log:1,false,on_obtain:copper_ingot,
+smelter,제련 시설,1,iron_ingot:1;stone:1,true,on_obtain:iron_ingot,
+miner_v1,채굴기 v1,1,iron_ingot:1;copper_ingot:1,true,on_obtain:iron_ingot,
+conveyor,컨베이어 벨트,1,iron_ingot:1,false,on_obtain:iron_ingot,곡선 지원
+storage,창고,1,log:1;iron_ingot:1,false,on_obtain:log,
