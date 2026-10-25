@@ -17,6 +17,8 @@ class J3_API AJ3GameMode : public AGameModeBase
 	GENERATED_BODY()
 
 public:
+	AJ3GameMode();
+
 	// 클라이언트가 접속 URL에 붙여 보내는 데이터 해시 옵션 이름
 	static const TCHAR* DataHashOption;
 

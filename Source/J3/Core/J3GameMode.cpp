@@ -2,15 +2,25 @@
 
 #include "Core/J3GameMode.h"
 
+#include "Core/J3PlayerController.h"
 #include "Data/J3DataSubsystem.h"
 #include "Engine/NetDriver.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Player/J3Character.h"
 
 DEFINE_LOG_CATEGORY(LogJ3Net);
 
 const TCHAR* AJ3GameMode::DataHashOption = TEXT("J3DataHash");
+
+
+AJ3GameMode::AJ3GameMode()
+{
+	// C++ 기본값. 메시·입력 에셋이 들어간 블루프린트 클래스는 BP_J3GameMode에서 지정한다.
+	DefaultPawnClass = AJ3Character::StaticClass();
+	PlayerControllerClass = AJ3PlayerController::StaticClass();
+}
 
 
 void AJ3GameMode::BeginPlay()
