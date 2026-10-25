@@ -15,6 +15,9 @@ public class J3 : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
+		// 복제는 처음부터 Iris로 검증한다 (Multiplayer_Architecture 4.2.2). 실제 사용 여부는 net.Iris.UseIrisReplication
+		SetupIrisSupport(Target);
+
 		// 에디터에서 Data/*.csv 변경을 감시해 다시 읽는다
 		if (Target.bBuildEditor)
 		{
