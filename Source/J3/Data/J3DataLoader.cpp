@@ -1,3 +1,5 @@
+// Copyright (c) ACCENT. All Rights Reserved.
+
 #include "Data/J3DataLoader.h"
 
 #include "Data/J3CsvTable.h"

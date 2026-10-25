@@ -1,3 +1,5 @@
+// Copyright (c) ACCENT. All Rights Reserved.
+
 #include "Data/J3DataValidator.h"
 
 #include "Algo/AllOf.h"
