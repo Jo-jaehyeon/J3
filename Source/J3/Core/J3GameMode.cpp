@@ -3,6 +3,7 @@
 #include "Core/J3GameMode.h"
 
 #include "Core/J3PlayerController.h"
+#include "Core/J3PlayerState.h"
 #include "Data/J3DataSubsystem.h"
 #include "Engine/NetDriver.h"
 #include "Engine/World.h"
@@ -20,6 +21,7 @@ AJ3GameMode::AJ3GameMode()
 	// C++ 기본값. 메시·입력 에셋이 들어간 블루프린트 클래스는 BP_J3GameMode에서 지정한다.
 	DefaultPawnClass = AJ3Character::StaticClass();
 	PlayerControllerClass = AJ3PlayerController::StaticClass();
+	PlayerStateClass = AJ3PlayerState::StaticClass();
 }
 
 

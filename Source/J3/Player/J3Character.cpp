@@ -2,10 +2,14 @@
 
 #include "Player/J3Character.h"
 
+#include "AbilitySystemComponent.h"
+#include "Abilities/J3GameplayTags.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Core/J3PlayerState.h"
 #include "EnhancedInputComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "InputActionValue.h"
 
 
@@ -53,6 +57,62 @@ void AJ3Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	if (LookAction != nullptr)
 	{
 		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &AJ3Character::Look);
+	}
+}
+
+
+UAbilitySystemComponent* AJ3Character::GetAbilitySystemComponent() const
+{
+	const AJ3PlayerState* J3PlayerState = GetPlayerState<AJ3PlayerState>();
+	return J3PlayerState != nullptr ? J3PlayerState->GetAbilitySystemComponent() : nullptr;
+}
+
+
+void AJ3Character::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	InitAbilityActorInfo();
+}
+
+
+void AJ3Character::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	InitAbilityActorInfo();
+}
+
+
+void AJ3Character::InitAbilityActorInfo()
+{
+	// 주인(Owner)은 PlayerState, 몸(Avatar)은 이 캐릭터
+	AJ3PlayerState* J3PlayerState = GetPlayerState<AJ3PlayerState>();
+	UAbilitySystemComponent* AbilitySystem = GetAbilitySystemComponent();
+	if (AbilitySystem == nullptr)
+	{
+		return;
+	}
+	AbilitySystem->InitAbilityActorInfo(J3PlayerState, this);
+
+
+	// 사망 태그에 맞춰 이동을 막는다. 태그는 복제되므로 서버·본인·다른 클라이언트 모두 같은 처리를 한다.
+	if (!DeadTagHandle.IsValid())
+	{
+		DeadTagHandle = AbilitySystem->RegisterGameplayTagEvent(J3Tags::State_Dead, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AJ3Character::OnDeadTagChanged);
+	}
+	OnDeadTagChanged(J3Tags::State_Dead, AbilitySystem->GetTagCount(J3Tags::State_Dead));
+}
+
+
+void AJ3Character::OnDeadTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	// TODO(단계 6): 쓰러짐 연출, 부활 버튼·제세동기
+	if (NewCount > 0)
+	{
+		GetCharacterMovement()->DisableMovement();
+	}
+	else
+	{
+		GetCharacterMovement()->SetDefaultMovementMode();
 	}
 }
 
