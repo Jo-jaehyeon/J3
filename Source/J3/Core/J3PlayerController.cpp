@@ -2,7 +2,10 @@
 
 #include "Core/J3PlayerController.h"
 
+#include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "InputActionValue.h"
+#include "Building/J3BuildModeComponent.h"
 #include "Building/J3BuilderComponent.h"
 #include "Building/J3BuildingBase.h"
 #include "Core/J3PlayerState.h"
@@ -11,9 +14,103 @@
 #include "InputMappingContext.h"
 #include "Inventory/J3InventoryComponent.h"
 #include "Player/J3Character.h"
+#include "UI/J3BuildMenuWidget.h"
 #include "UI/J3CraftingWidget.h"
 #include "UI/J3HUDWidget.h"
 #include "UI/J3InventoryWidget.h"
+
+
+AJ3PlayerController::AJ3PlayerController()
+{
+	BuildMode = CreateDefaultSubobject<UJ3BuildModeComponent>(TEXT("BuildMode"));
+}
+
+
+void AJ3PlayerController::SetupInputComponent()
+{
+	Super::SetupInputComponent();
+
+	UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent);
+	if (EnhancedInput == nullptr)
+	{
+		return;
+	}
+	if (BuildMenuAction != nullptr)
+	{
+		EnhancedInput->BindAction(BuildMenuAction, ETriggerEvent::Started, this, &AJ3PlayerController::ToggleBuildMenu);
+	}
+	if (ConfirmAction != nullptr)
+	{
+		EnhancedInput->BindAction(ConfirmAction, ETriggerEvent::Started, this, &AJ3PlayerController::OnConfirm);
+	}
+	if (CancelAction != nullptr)
+	{
+		EnhancedInput->BindAction(CancelAction, ETriggerEvent::Started, this, &AJ3PlayerController::OnCancel);
+	}
+	if (PickBuildingAction != nullptr)
+	{
+		EnhancedInput->BindAction(PickBuildingAction, ETriggerEvent::Started, this, &AJ3PlayerController::OnPickBuilding);
+	}
+	if (HotbarAction != nullptr)
+	{
+		EnhancedInput->BindAction(HotbarAction, ETriggerEvent::Started, this, &AJ3PlayerController::OnHotbar);
+	}
+}
+
+
+void AJ3PlayerController::OnConfirm()
+{
+	// 화면이 열려 있지 않을 때 좌클릭 = 설치 확정 (건설 모드에서만)
+	BuildMode->Confirm();
+}
+
+
+void AJ3PlayerController::OnCancel()
+{
+	BuildMode->EndPlacing();
+}
+
+
+void AJ3PlayerController::OnPickBuilding()
+{
+	BuildMode->PickAimedBuilding();
+}
+
+
+void AJ3PlayerController::OnHotbar(const FInputActionValue& Value)
+{
+	// 1~9, 0 → 칸 0~9
+	const int32 Index = FMath::RoundToInt(Value.Get<float>()) - 1;
+	BuildMode->UseHotbar(Index);
+}
+
+
+void AJ3PlayerController::ToggleBuildMenu()
+{
+	// 처음 열 때 만든다
+	if (BuildMenuWidget == nullptr)
+	{
+		const TSubclassOf<UJ3BuildMenuWidget> MenuClass = BuildMenuWidgetClass != nullptr ? BuildMenuWidgetClass : TSubclassOf<UJ3BuildMenuWidget>(UJ3BuildMenuWidget::StaticClass());
+		BuildMenuWidget = CreateWidget<UJ3BuildMenuWidget>(this, MenuClass);
+	}
+	if (BuildMenuWidget->IsInViewport())
+	{
+		CloseBuildMenu();
+		return;
+	}
+	BuildMenuWidget->AddToViewport(1);
+	RefreshUIInputMode(BuildMenuWidget);
+}
+
+
+void AJ3PlayerController::CloseBuildMenu()
+{
+	if (BuildMenuWidget != nullptr && BuildMenuWidget->IsInViewport())
+	{
+		BuildMenuWidget->RemoveFromParent();
+		RefreshUIInputMode(nullptr);
+	}
+}
 
 
 void AJ3PlayerController::BeginPlay()
@@ -94,7 +191,8 @@ void AJ3PlayerController::RefreshUIInputMode(UUserWidget* FocusWidget)
 	// 모두 닫혔으면 게임 입력으로 돌아간다
 	const bool bInventoryOpen = InventoryWidget != nullptr && InventoryWidget->IsInViewport();
 	const bool bCraftingOpen = CraftingWidget != nullptr && CraftingWidget->IsInViewport();
-	if (!bInventoryOpen && !bCraftingOpen)
+	const bool bBuildMenuOpen = BuildMenuWidget != nullptr && BuildMenuWidget->IsInViewport();
+	if (!bInventoryOpen && !bCraftingOpen && !bBuildMenuOpen)
 	{
 		SetInputMode(FInputModeGameOnly());
 		SetShowMouseCursor(false);
@@ -105,7 +203,11 @@ void AJ3PlayerController::RefreshUIInputMode(UUserWidget* FocusWidget)
 
 	// 열려 있으면 커서로 다루고, 키 입력(I, 이동)은 게임에도 계속 들어간다 (인벤토리를 연 채 이동 가능, 확정)
 	FInputModeGameAndUI InputMode;
-	UUserWidget* Focus = FocusWidget != nullptr ? FocusWidget : (bCraftingOpen ? static_cast<UUserWidget*>(CraftingWidget) : static_cast<UUserWidget*>(InventoryWidget));
+	UUserWidget* Focus = FocusWidget;
+	if (Focus == nullptr)
+	{
+		Focus = bBuildMenuOpen ? static_cast<UUserWidget*>(BuildMenuWidget) : (bCraftingOpen ? static_cast<UUserWidget*>(CraftingWidget) : static_cast<UUserWidget*>(InventoryWidget));
+	}
 	InputMode.SetWidgetToFocus(Focus->TakeWidget());
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);

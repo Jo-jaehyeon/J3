@@ -57,6 +57,7 @@ private:
 	void BuildEquipment(class UCanvasPanel* Root);
 	void BuildCrosshair(class UCanvasPanel* Root);
 	void BuildHarvestBar(class UCanvasPanel* Root);
+	void BuildBuildModeText(class UCanvasPanel* Root);
 	FStatRow AddStatRow(class UVerticalBox* Box, const FText& Label, const FLinearColor& Color);
 	static void SetStat(const FStatRow& Row, float Current, float Max);
 
@@ -71,4 +72,8 @@ private:
 	// 채취 진행 막대 (채취 중에만 보임)
 	UPROPERTY()
 	TObjectPtr<UProgressBar> HarvestBar;
+
+	// 건설 모드 안내: 건물 이름, 설치 가능 여부·불가 사유, 조작 (건설 모드에서만 보임)
+	UPROPERTY()
+	TObjectPtr<UTextBlock> BuildModeText;
 };

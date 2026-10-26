@@ -7,7 +7,11 @@
 #include "J3PlayerController.generated.h"
 
 class UInputMappingContext;
+class UInputAction;
+class UJ3BuildMenuWidget;
+class UJ3BuildModeComponent;
 class UJ3CraftingWidget;
+struct FInputActionValue;
 class UJ3HUDWidget;
 class UJ3InventoryWidget;
 
@@ -19,6 +23,17 @@ class J3_API AJ3PlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	AJ3PlayerController();
+
+	UJ3BuildModeComponent* GetBuildMode() const
+	{
+		return BuildMode;
+	}
+
+	// Q: 건설 메뉴 열기/닫기
+	void ToggleBuildMenu();
+	void CloseBuildMenu();
+
 	// 개발용 치트 (콘솔: J3Give stone_axe 1). 배포 빌드에서는 동작하지 않는다.
 	UFUNCTION(Exec)
 	void J3Give(FName ItemId, int32 Count = 1);
@@ -45,6 +60,7 @@ protected:
 	void Server_DebugGive(FName ItemId, int32 Count);
 
 	virtual void BeginPlay() override;
+	virtual void SetupInputComponent() override;
 
 	// 채취 중에는 시점을 시작 방향 기준 일정 각도 안으로 묶는다 (채취는 집중하는 행동)
 	virtual void UpdateRotation(float DeltaTime) override;
@@ -52,6 +68,26 @@ protected:
 	// 기본 키 배치 (Dev_Handoff 6절). 에셋은 BP_J3PlayerController에서 지정한다.
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
+
+	// 건설 입력 (폰이 바뀌어도 유지되도록 컨트롤러에서 받는다)
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> BuildMenuAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> ConfirmAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> CancelAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> PickBuildingAction;
+
+	// 숫자키 1~0 (값 1~10, 입력 매핑의 Scalar로 구분)
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> HotbarAction;
+
+	UPROPERTY(VisibleAnywhere, Category = "J3|Building")
+	TObjectPtr<UJ3BuildModeComponent> BuildMode;
 
 	// UI 위젯 클래스 (블루프린트에서 겉모습을 바꾼 하위 클래스로 교체 가능)
 	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
@@ -63,6 +99,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
 	TSubclassOf<UJ3CraftingWidget> CraftingWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
+	TSubclassOf<UJ3BuildMenuWidget> BuildMenuWidgetClass;
+
 private:
 	UPROPERTY()
 	TObjectPtr<UJ3HUDWidget> HUDWidget;
@@ -72,6 +111,14 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UJ3CraftingWidget> CraftingWidget;
+
+	UPROPERTY()
+	TObjectPtr<UJ3BuildMenuWidget> BuildMenuWidget;
+
+	void OnConfirm();
+	void OnCancel();
+	void OnPickBuilding();
+	void OnHotbar(const FInputActionValue& Value);
 
 	// 화면(인벤토리·제작)이 하나라도 열려 있으면 커서를 보이고 시점 회전을 멈춘다
 	void RefreshUIInputMode(UUserWidget* FocusWidget);

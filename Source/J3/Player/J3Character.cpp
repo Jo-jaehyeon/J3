@@ -7,6 +7,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Building/J3BuildModeComponent.h"
 #include "Core/J3PlayerController.h"
 #include "Core/J3PlayerState.h"
 #include "Data/J3DataSubsystem.h"
@@ -175,8 +176,17 @@ void AJ3Character::Look(const FInputActionValue& Value)
 
 void AJ3Character::CycleEquipment(const FInputActionValue& Value)
 {
-	// 휠 한 칸 = 한 칸 이동. 바뀐 결과(손에 든 장비)는 서버가 정하고 복제한다.
+	// 건설 모드에서는 휠이 회전 (Inventory_And_UI 1.3)
 	const float Axis = Value.Get<float>();
+	const AJ3PlayerController* J3Controller = Cast<AJ3PlayerController>(GetController());
+	if (J3Controller != nullptr && J3Controller->GetBuildMode()->IsPlacing())
+	{
+		J3Controller->GetBuildMode()->Rotate(Axis > 0.f ? 1 : -1);
+		return;
+	}
+
+
+	// 휠 한 칸 = 한 칸 이동. 바뀐 결과(손에 든 장비)는 서버가 정하고 복제한다.
 	UJ3InventoryComponent* Inventory = GetInventory();
 	if (Inventory == nullptr || FMath::IsNearlyZero(Axis))
 	{
@@ -197,6 +207,15 @@ void AJ3Character::ToggleInventory()
 
 void AJ3Character::Attack()
 {
+	// 건설 모드에서 우클릭은 취소 (Inventory_And_UI 1.3)
+	const AJ3PlayerController* J3Controller = Cast<AJ3PlayerController>(GetController());
+	if (J3Controller != nullptr && J3Controller->GetBuildMode()->IsPlacing())
+	{
+		J3Controller->GetBuildMode()->EndPlacing();
+		return;
+	}
+
+
 	// 손에 든 장비가 부여한 공격 능력(InputTag.Attack)을 발동한다. 맨손이면 부여된 능력이 없어 아무 일도 없다.
 	UAbilitySystemComponent* AbilitySystem = GetAbilitySystemComponent();
 	if (AbilitySystem == nullptr)

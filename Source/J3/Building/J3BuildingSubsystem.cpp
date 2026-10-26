@@ -120,6 +120,29 @@ FJ3PlacementCheck UJ3BuildingSubsystem::CheckPlacement(FName BuildingId, const F
 	}
 
 
+	// 바닥 찾기: 지형이나 다른 건물의 윗면. 다른 조건이 실패해도 미리보기를 바닥에 붙이려고 먼저 위치를 정한다.
+	FCollisionQueryParams GroundParams(SCENE_QUERY_STAT(J3BuildGround), true);
+	GroundParams.AddIgnoredActor(IgnoreActor);
+	GroundParams.AddIgnoredActor(Builder);
+	FCollisionObjectQueryParams GroundTypes;
+	GroundTypes.AddObjectTypesToQuery(ECC_WorldStatic);
+	GroundTypes.AddObjectTypesToQuery(ECC_WorldDynamic);
+	FHitResult Ground;
+	if (!GetWorld()->LineTraceSingleByObjectType(Ground, Location + FVector(0.f, 0.f, GroundTraceUpCm), Location - FVector(0.f, 0.f, GroundTraceDownCm), GroundTypes, GroundParams))
+	{
+		Check.Result = EJ3PlacementResult::NoGround;
+		return Check;
+	}
+	const AJ3BuildingBase* GroundBuilding = Cast<AJ3BuildingBase>(Ground.GetActor());
+	if (GroundBuilding != nullptr && !GroundBuilding->CanSupportBuildingsOnTop())
+	{
+		Check.Result = EJ3PlacementResult::Overlapping;
+		return Check;
+	}
+	const FQuat Rotation = FRotator(0.f, J3Building::QuantizeYaw(YawDeg), 0.f).Quaternion();
+	Check.Transform = FTransform(Rotation, J3Building::QuantizeLocation(Ground.ImpactPoint));
+
+
 	// 해방·개수 제한·규모 상한 (팀 상태)
 	const AJ3GameState* GameState = GetWorld()->GetGameState<AJ3GameState>();
 	if (GameState == nullptr || !GameState->IsUnlocked(Def->Unlock))
@@ -154,29 +177,6 @@ FJ3PlacementCheck UJ3BuildingSubsystem::CheckPlacement(FName BuildingId, const F
 		Check.Result = EJ3PlacementResult::TooFar;
 		return Check;
 	}
-
-
-	// 바닥 찾기: 지형이나 다른 건물의 윗면
-	FCollisionQueryParams GroundParams(SCENE_QUERY_STAT(J3BuildGround), true);
-	GroundParams.AddIgnoredActor(IgnoreActor);
-	GroundParams.AddIgnoredActor(Builder);
-	FCollisionObjectQueryParams GroundTypes;
-	GroundTypes.AddObjectTypesToQuery(ECC_WorldStatic);
-	GroundTypes.AddObjectTypesToQuery(ECC_WorldDynamic);
-	FHitResult Ground;
-	if (!GetWorld()->LineTraceSingleByObjectType(Ground, Location + FVector(0.f, 0.f, GroundTraceUpCm), Location - FVector(0.f, 0.f, GroundTraceDownCm), GroundTypes, GroundParams))
-	{
-		Check.Result = EJ3PlacementResult::NoGround;
-		return Check;
-	}
-	const AJ3BuildingBase* GroundBuilding = Cast<AJ3BuildingBase>(Ground.GetActor());
-	if (GroundBuilding != nullptr && !GroundBuilding->CanSupportBuildingsOnTop())
-	{
-		Check.Result = EJ3PlacementResult::Overlapping;
-		return Check;
-	}
-	const FQuat Rotation = FRotator(0.f, J3Building::QuantizeYaw(YawDeg), 0.f).Quaternion();
-	Check.Transform = FTransform(Rotation, J3Building::QuantizeLocation(Ground.ImpactPoint));
 
 
 	// 경사: 지형이든 건물 윗면이든 같은 기준 (25°, Building_Placement 1절)

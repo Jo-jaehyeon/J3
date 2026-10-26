@@ -4,6 +4,8 @@
 
 #include "Abilities/J3SurvivalAttributeSet.h"
 #include "Blueprint/WidgetTree.h"
+#include "Building/J3BuildModeComponent.h"
+#include "Core/J3PlayerController.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
@@ -46,6 +48,17 @@ void UJ3HUDWidget::NativeOnInitialized()
 	BuildEquipment(Root);
 	BuildCrosshair(Root);
 	BuildHarvestBar(Root);
+	BuildBuildModeText(Root);
+}
+
+
+void UJ3HUDWidget::BuildBuildModeText(UCanvasPanel* Root)
+{
+	// 화면 아래 가운데
+	BuildModeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+	BuildModeText->SetJustification(ETextJustify::Center);
+	BuildModeText->SetVisibility(ESlateVisibility::Collapsed);
+	J3HUDWidgetPrivate::Anchor(Root->AddChildToCanvas(BuildModeText), FVector2D(0.5f, 1.f), FVector2D(0.f, -ScreenMargin * 4.f));
 }
 
 
@@ -147,6 +160,24 @@ void UJ3HUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	SetStat(HealthRow, Attributes->GetHealth(), Attributes->GetMaxHealth());
 	SetStat(HungerRow, Attributes->GetHunger(), Attributes->GetMaxHunger());
 	SetStat(ThirstRow, Attributes->GetThirst(), Attributes->GetMaxThirst());
+
+
+	// 건설 모드 안내
+	const AJ3PlayerController* Controller = Cast<AJ3PlayerController>(GetOwningPlayer());
+	const UJ3BuildModeComponent* BuildMode = Controller != nullptr ? Controller->GetBuildMode() : nullptr;
+	if (BuildMode != nullptr && BuildMode->IsPlacing())
+	{
+		const FJ3BuildingDef* Def = UJ3DataSubsystem::Get()->GetBuilding(BuildMode->GetSelectedBuildingId());
+		const FJ3PlacementCheck& Check = BuildMode->GetLastCheck();
+		BuildModeText->SetText(FText::Format(LOCTEXT("BuildMode", "{0}\n{1}\n좌클릭: 설치   휠: 회전   가운데 클릭: 같은 건물   우클릭·Esc: 취소"),
+			Def != nullptr ? Def->DisplayName : FText::GetEmpty(), J3Building::GetResultText(Check.Result)));
+		BuildModeText->SetColorAndOpacity(Check.IsOk() ? FSlateColor(FLinearColor::White) : FSlateColor(FLinearColor(1.f, 0.35f, 0.3f)));
+		BuildModeText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	else
+	{
+		BuildModeText->SetVisibility(ESlateVisibility::Collapsed);
+	}
 
 
 	// 채취 진행도

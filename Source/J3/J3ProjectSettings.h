@@ -8,6 +8,7 @@
 
 class AJ3BeltVisualizer;
 class AJ3PickupItem;
+class UMaterialInterface;
 
 
 // 프로젝트 설정 > J3: 코드가 직접 참조하는 블루프린트(겉모습) 클래스를 지정한다.
@@ -25,4 +26,8 @@ public:
 	// 바닥에 떨구는 아이템 (모양을 지정한 블루프린트)
 	UPROPERTY(Config, EditAnywhere, Category = "Items")
 	TSoftClassPtr<AJ3PickupItem> PickupItemClass;
+
+	// 건설 미리보기 재질 (반투명, Color·Opacity 파라미터)
+	UPROPERTY(Config, EditAnywhere, Category = "Building")
+	TSoftObjectPtr<UMaterialInterface> BuildPreviewMaterial;
 };
