@@ -150,6 +150,24 @@ const FJ3ResourceNodeDef* UJ3DataSubsystem::GetResourceNode(FName NodeId) const
 }
 
 
+TArray<FJ3ResourceSpawnDef> UJ3DataSubsystem::GetResourceSpawns(FName Zone) const
+{
+	TArray<FJ3ResourceSpawnDef> Result;
+	for (const TPair<FName, FJ3ResourceSpawnDef>& Pair : Data.ResourceSpawns)
+	{
+		if (Pair.Value.Zone == Zone)
+		{
+			Result.Add(Pair.Value);
+		}
+	}
+	Result.Sort([](const FJ3ResourceSpawnDef& A, const FJ3ResourceSpawnDef& B)
+	{
+		return A.NodeId.LexicalLess(B.NodeId);
+	});
+	return Result;
+}
+
+
 uint16 UJ3DataSubsystem::GetItemTypeId(FName ItemId) const
 {
 	const uint16* TypeId = Data.ItemTypeIds.Find(ItemId);

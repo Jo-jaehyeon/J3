@@ -190,13 +190,14 @@ bool FJ3DataLoader::LoadAll(const FString& DataDir, FJ3GameData& OutData, FJ3Dat
 {
 	// 표 읽기. 표 하나가 실패해도 나머지 표의 오류까지 한 번에 보여 주려고 끝까지 읽는다.
 	TArray<FString> RawContents;
-	RawContents.SetNum(6);
+	RawContents.SetNum(7);
 	LoadItems(DataDir, OutData, Report, RawContents[0]);
 	LoadRecipes(DataDir, OutData, Report, RawContents[1]);
 	LoadBuildings(DataDir, OutData, Report, RawContents[2]);
 	LoadConfig(DataDir, OutData, Report, RawContents[3]);
 	LoadEquipment(DataDir, OutData, Report, RawContents[4]);
 	LoadResourceNodes(DataDir, OutData, Report, RawContents[5]);
+	LoadResourceSpawns(DataDir, OutData, Report, RawContents[6]);
 
 
 	// 컨베이어용 아이템 종류 번호
@@ -318,6 +319,35 @@ void FJ3DataLoader::LoadEquipment(const FString& DataDir, FJ3GameData& OutData, 
 		Def.HarvestTag = FName(*Reader.Optional("harvest_tag"));
 		Def.HarvestMultiplier = Reader.OptionalFloat("harvest_multiplier", 1.f);
 		AddUnique(OutData.Equipment, &OutData.EquipmentLines, MoveTemp(Def), Reader);
+	}
+}
+
+
+void FJ3DataLoader::LoadResourceSpawns(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw)
+{
+	using namespace J3DataLoaderPrivate;
+
+	FJ3CsvTable Table;
+	if (!OpenTable(Table, DataDir, TEXT("resource_spawns.csv"), { "id", "zone", "node", "count", "guarantee" }, Report, OutRaw))
+	{
+		return;
+	}
+
+
+	for (const FJ3CsvTable::FRow& Row : Table.GetRows())
+	{
+		FRowReader Reader{ Table, Row, Report };
+		FJ3ResourceSpawnDef Def;
+		Def.Id = FName(*Reader.Required("id"));
+		Def.Zone = FName(*Reader.Required("zone"));
+		Def.NodeId = FName(*Reader.Required("node"));
+		Def.Count = Reader.RequiredInt("count");
+		Def.Guarantee = Reader.OptionalInt("guarantee", 0);
+		if (Def.Count < 0 || Def.Guarantee < 0 || Def.Guarantee > Def.Count)
+		{
+			Reader.Error(TEXT("count >= guarantee >= 0 이어야 합니다"));
+		}
+		AddUnique(OutData.ResourceSpawns, &OutData.ResourceSpawnLines, MoveTemp(Def), Reader);
 	}
 }
 

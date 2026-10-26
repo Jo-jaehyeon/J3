@@ -30,3 +30,7 @@ max_belt_segments,5000,규모 상한: 컨베이어 구간 수 (단계 2 측정 �
 harvest_check_sec,0.1,채취 중 거리 확인 주기 (멀어지면 즉시 취소, 제안)
 harvest_look_yaw_deg,30,채취 중 좌우 시점 회전 한계 (0이면 고정, 제안)
 harvest_look_pitch_deg,20,채취 중 위아래 시점 회전 한계 (0이면 고정, 제안)
+resource_guarantee_radius_cm,3000,시작 지점에서 T0·T1 노드를 보장하는 반경 (미결정: 임시값)
+resource_min_spacing_cm,300,자원 노드 사이 최소 거리 (제안: 임시값)
+resource_place_attempts,32,노드 하나를 놓을 자리를 찾는 최대 시도 횟수 (제안)
+resource_trace_half_height_cm,20000,자원 노드 지면 찾기 범위 (배치 액터 높이 기준 위아래, 제안)

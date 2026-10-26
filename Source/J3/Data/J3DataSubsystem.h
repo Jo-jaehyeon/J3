@@ -39,6 +39,9 @@ public:
 	const FJ3EquipmentDef* GetEquipment(FName ItemId) const;
 	const FJ3ResourceNodeDef* GetResourceNode(FName NodeId) const;
 
+	// 구역의 자원 배치 규칙 (노드 ID 순서로 정렬해 서버·세이브마다 같은 결과가 나오게 한다)
+	TArray<FJ3ResourceSpawnDef> GetResourceSpawns(FName Zone) const;
+
 	// 컨베이어 아이템 종류 번호 ↔ 아이템 ID (없으면 0 / None)
 	uint16 GetItemTypeId(FName ItemId) const;
 	FName GetItemIdByType(uint16 TypeId) const;

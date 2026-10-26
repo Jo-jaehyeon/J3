@@ -22,6 +22,7 @@ public:
 	// 클라이언트가 접속 URL에 붙여 보내는 데이터 해시 옵션 이름
 	static const TCHAR* DataHashOption;
 
+	virtual void InitGameState() override;
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 

@@ -145,6 +145,16 @@ void FJ3DataValidator::CheckResourceNodes(const FJ3GameData& Data, FJ3DataReport
 	{
 		CheckItem(Data, Report, TEXT("resource_nodes.csv"), LineOf(Data.ResourceNodeLines, Pair.Key), TEXT("item"), Pair.Value.ItemId);
 	}
+
+
+	// 배치 규칙의 노드가 있어야 한다
+	for (const TPair<FName, FJ3ResourceSpawnDef>& Pair : Data.ResourceSpawns)
+	{
+		if (!Data.ResourceNodes.Contains(Pair.Value.NodeId))
+		{
+			Report.AddError(TEXT("resource_spawns.csv"), LineOf(Data.ResourceSpawnLines, Pair.Key), FString::Printf(TEXT("node: 없는 자원 노드 '%s'"), *Pair.Value.NodeId.ToString()));
+		}
+	}
 }
 
 

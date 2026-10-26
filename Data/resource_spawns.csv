@@ -1,0 +1,10 @@
+id,zone,node,count,guarantee,note
+dev/rock,dev,rock,12,3,개발 맵 (수치 임시)
+dev/bush,dev,bush,12,3,
+dev/grass,dev,grass,10,3,
+dev/berry_bush,dev,berry_bush,8,2,
+dev/tree,dev,tree,8,2,
+dev/quarry,dev,quarry,4,1,
+dev/iron_deposit,dev,iron_deposit,4,2,
+dev/copper_deposit,dev,copper_deposit,4,2,
+dev/coal_deposit,dev,coal_deposit,4,2,

@@ -131,6 +131,32 @@ struct FJ3BuildingDef
 };
 
 
+// resource_spawns.csv 한 행: 구역(zone)별로 어떤 노드를 몇 개 놓고, 그중 몇 개를 시작 지점 반경 안에 보장할지
+USTRUCT(BlueprintType)
+struct FJ3ResourceSpawnDef
+{
+	GENERATED_BODY()
+
+	// "구역/노드"
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName Id;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName Zone;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName NodeId;
+
+	// 구역 전체에 놓을 개수 (보장 개수 포함)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	int32 Count = 0;
+
+	// 시작 지점 반경 안에 반드시 놓을 개수 (Resources_And_Tiers 1절)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	int32 Guarantee = 0;
+};
+
+
 // 장비 칸에 들어가는 아이템 종류인지 (도구·무기). 탄약은 장비 칸이 아니라 인벤토리에서 소모한다 (Inventory_And_UI 2절).
 inline bool J3IsEquipmentCategory(FName Category)
 {
@@ -217,6 +243,7 @@ struct FJ3GameData
 	TMap<FName, FJ3BuildingDef> Buildings;
 	TMap<FName, FJ3EquipmentDef> Equipment;
 	TMap<FName, FJ3ResourceNodeDef> ResourceNodes;
+	TMap<FName, FJ3ResourceSpawnDef> ResourceSpawns;
 	TMap<FName, float> Config;
 
 	// 컨베이어 위 아이템 종류 번호 (2바이트). 아이템 ID를 이름순으로 정렬해 1부터 매긴다.
@@ -230,6 +257,7 @@ struct FJ3GameData
 	TMap<FName, int32> BuildingLines;
 	TMap<FName, int32> EquipmentLines;
 	TMap<FName, int32> ResourceNodeLines;
+	TMap<FName, int32> ResourceSpawnLines;
 
 	// 서버·클라 데이터 일치 확인용 (원본 파일 내용 기준)
 	FString Hash;

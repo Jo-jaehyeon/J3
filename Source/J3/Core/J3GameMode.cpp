@@ -3,6 +3,7 @@
 #include "Core/J3GameMode.h"
 
 #include "Core/J3PlayerController.h"
+#include "Core/J3GameState.h"
 #include "Core/J3PlayerState.h"
 #include "Data/J3DataSubsystem.h"
 #include "Engine/NetDriver.h"
@@ -22,6 +23,25 @@ AJ3GameMode::AJ3GameMode()
 	DefaultPawnClass = AJ3Character::StaticClass();
 	PlayerControllerClass = AJ3PlayerController::StaticClass();
 	PlayerStateClass = AJ3PlayerState::StaticClass();
+	GameStateClass = AJ3GameState::StaticClass();
+}
+
+
+void AJ3GameMode::InitGameState()
+{
+	Super::InitGameState();
+
+	// 월드 시드: 접속 URL의 ?Seed= 값, 없으면 무작위
+	// TODO(단계 8): 새 게임 화면의 시드 입력, 세이브의 시드 복원
+	AJ3GameState* J3GameState = GetGameState<AJ3GameState>();
+	if (J3GameState == nullptr)
+	{
+		return;
+	}
+	const FString SeedOption = UGameplayStatics::ParseOption(OptionsString, TEXT("Seed"));
+	const int32 Seed = SeedOption.IsEmpty() ? FMath::Rand() : FCString::Atoi(*SeedOption);
+	J3GameState->SetWorldSeed(Seed);
+	UE_LOG(LogJ3Net, Display, TEXT("월드 시드: %d"), Seed);
 }
 
 
