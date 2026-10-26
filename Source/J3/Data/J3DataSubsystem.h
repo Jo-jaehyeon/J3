@@ -37,6 +37,7 @@ public:
 	const FJ3RecipeDef* GetRecipe(FName RecipeId) const;
 	const FJ3BuildingDef* GetBuilding(FName BuildingId) const;
 	const FJ3EquipmentDef* GetEquipment(FName ItemId) const;
+	const FJ3ResourceNodeDef* GetResourceNode(FName NodeId) const;
 
 	// 컨베이어 아이템 종류 번호 ↔ 아이템 ID (없으면 0 / None)
 	uint16 GetItemTypeId(FName ItemId) const;

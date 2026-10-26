@@ -18,4 +18,5 @@ namespace J3Tags
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "HP 0으로 사망한 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Starving, "State.Starving", "공복 또는 갈증이 0이라 HP가 줄어드는 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Harvesting, "State.Harvesting", "자원 채취 중 (공격·장비 변경·점프·다른 상호작용 불가)");
 }

@@ -38,9 +38,9 @@ void UJ3EquipmentAbilityComponent::OnHeldItemChanged(FName HeldItemId)
 	ClearWeaponAbility();
 
 
-	// 새 장비의 능력 클래스 (맨손이거나 equipment.csv에 없는 도구면 능력 없음)
+	// 새 장비의 능력 클래스 (맨손, equipment.csv에 없거나 공격이 없는 도구면 능력 없음)
 	const FJ3EquipmentDef* Equipment = UJ3DataSubsystem::Get()->GetEquipment(HeldItemId);
-	if (Equipment == nullptr)
+	if (Equipment == nullptr || Equipment->Ability.IsNull())
 	{
 		return;
 	}

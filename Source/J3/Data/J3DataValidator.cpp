@@ -47,6 +47,7 @@ void FJ3DataValidator::Validate(const FJ3GameData& Data, FJ3DataReport& Report)
 {
 	CheckReferences(Data, Report);
 	CheckEquipment(Data, Report);
+	CheckResourceNodes(Data, Report);
 
 
 	// 참조가 깨져 있으면 도달 검사 결과가 오류를 중복으로 쏟아내므로 건너뛴다
@@ -118,9 +119,9 @@ void FJ3DataValidator::CheckEquipment(const FJ3GameData& Data, FJ3DataReport& Re
 		}
 
 
-		// GA 블루프린트가 실제로 있는지 (클래스 종류는 장착할 때 확인한다)
+		// GA 블루프린트가 실제로 있는지 (비어 있으면 공격 없는 도구, 클래스 종류는 장착할 때 확인한다)
 		const FString PackageName = Equipment.Ability.GetLongPackageName();
-		if (PackageName.IsEmpty() || !FPackageName::DoesPackageExist(PackageName))
+		if (!Equipment.Ability.IsNull() && !FPackageName::DoesPackageExist(PackageName))
 		{
 			Report.AddError(TEXT("equipment.csv"), Line, FString::Printf(TEXT("ability: 없는 GA 경로 '%s'"), *Equipment.Ability.ToString()));
 		}
@@ -131,6 +132,18 @@ void FJ3DataValidator::CheckEquipment(const FJ3GameData& Data, FJ3DataReport& Re
 		{
 			CheckItem(Data, Report, TEXT("equipment.csv"), Line, TEXT("ammo"), Equipment.AmmoItem);
 		}
+	}
+}
+
+
+void FJ3DataValidator::CheckResourceNodes(const FJ3GameData& Data, FJ3DataReport& Report)
+{
+	using namespace J3DataValidatorPrivate;
+
+	// 노드가 주는 아이템이 있어야 한다
+	for (const TPair<FName, FJ3ResourceNodeDef>& Pair : Data.ResourceNodes)
+	{
+		CheckItem(Data, Report, TEXT("resource_nodes.csv"), LineOf(Data.ResourceNodeLines, Pair.Key), TEXT("item"), Pair.Value.ItemId);
 	}
 }
 

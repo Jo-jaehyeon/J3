@@ -27,3 +27,6 @@ factory_resync_sec,0.5,컨베이어 구간 보정 복제 최소 간격 (제안: 
 factory_chunk_size_cm,5000,공장 복제 청크 한 변 (Iris 액터당 전송 상한 회피, 제안: 단계 2 측정)
 max_belt_items,50000,규모 상한: 컨베이어 위 아이템 수 (단계 2 측정 초기값)
 max_belt_segments,5000,규모 상한: 컨베이어 구간 수 (단계 2 측정 초기값)
+harvest_check_sec,0.1,채취 중 거리 확인 주기 (멀어지면 즉시 취소, 제안)
+harvest_look_yaw_deg,30,채취 중 좌우 시점 회전 한계 (0이면 고정, 제안)
+harvest_look_pitch_deg,20,채취 중 위아래 시점 회전 한계 (0이면 고정, 제안)

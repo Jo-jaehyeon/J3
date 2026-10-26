@@ -17,6 +17,7 @@ public:
 private:
 	static void CheckReferences(const FJ3GameData& Data, FJ3DataReport& Report);
 	static void CheckEquipment(const FJ3GameData& Data, FJ3DataReport& Report);
+	static void CheckResourceNodes(const FJ3GameData& Data, FJ3DataReport& Report);
 	static void CheckReachability(const FJ3GameData& Data, FJ3DataReport& Report);
 	static void WarnUndecided(const FJ3GameData& Data, FJ3DataReport& Report);
 };

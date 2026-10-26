@@ -148,7 +148,7 @@ struct FJ3EquipmentDef
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	FName Id;
 
-	// 손에 들었을 때 부여하는 GA 클래스 (블루프린트 경로)
+	// 손에 들었을 때 부여하는 GA 클래스 (블루프린트 경로). 공격이 없는 도구(곡괭이)는 비어 있다.
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	FSoftClassPath Ability;
 
@@ -165,6 +165,47 @@ struct FJ3EquipmentDef
 	// 쏠 때마다 1개 소모하는 탄약 (없으면 None)
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	FName AmmoItem;
+
+	// 채취 도구 종류 (pickaxe, axe ...). 자원 노드의 tool_tag와 같으면 채취가 빨라진다.
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName HarvestTag;
+
+	// 채취 속도 배수 (2면 두 배 빠름)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float HarvestMultiplier = 1.f;
+};
+
+
+// resource_nodes.csv 한 행: 월드의 무한 자원 노드 종류 (Resources_And_Tiers 1절, 고갈 없음)
+USTRUCT(BlueprintType)
+struct FJ3ResourceNodeDef
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName Id;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FText DisplayName;
+
+	// 채취 한 번에 얻는 아이템과 개수
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName ItemId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	int32 Yield = 1;
+
+	// 맨손 기준 채취 한 번에 걸리는 시간
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float HarvestSec = 1.f;
+
+	// 이 종류의 도구를 들면 빨라진다 (없으면 도구 효과 없음)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName ToolTag;
+
+	// 이 종류의 도구가 없으면 채취할 수 없다 (없으면 맨손 가능)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName RequiredTag;
 };
 
 
@@ -175,6 +216,7 @@ struct FJ3GameData
 	TMap<FName, FJ3RecipeDef> Recipes;
 	TMap<FName, FJ3BuildingDef> Buildings;
 	TMap<FName, FJ3EquipmentDef> Equipment;
+	TMap<FName, FJ3ResourceNodeDef> ResourceNodes;
 	TMap<FName, float> Config;
 
 	// 컨베이어 위 아이템 종류 번호 (2바이트). 아이템 ID를 이름순으로 정렬해 1부터 매긴다.
@@ -187,6 +229,7 @@ struct FJ3GameData
 	TMap<FName, int32> RecipeLines;
 	TMap<FName, int32> BuildingLines;
 	TMap<FName, int32> EquipmentLines;
+	TMap<FName, int32> ResourceNodeLines;
 
 	// 서버·클라 데이터 일치 확인용 (원본 파일 내용 기준)
 	FString Hash;

@@ -1,4 +1,6 @@
-id,ability,damage,range_cm,cooldown_sec,ammo,note
-stone_axe,/Game/J3/Abilities/GA_MeleeSwing.GA_MeleeSwing_C,1,150,,,근접 (수치 임시)
-iron_axe,/Game/J3/Abilities/GA_MeleeSwing.GA_MeleeSwing_C,1,150,,,근접 (수치 임시)
-bow,/Game/J3/Abilities/GA_BowShot.GA_BowShot_C,1,3000,,arrow,원거리·화살 소모 (수치 임시)
+id,ability,damage,range_cm,cooldown_sec,ammo,harvest_tag,harvest_multiplier,note
+stone_axe,/Game/J3/Abilities/GA_MeleeSwing.GA_MeleeSwing_C,1,150,,,axe,2,근접·채취 겸용 (수치 임시)
+iron_axe,/Game/J3/Abilities/GA_MeleeSwing.GA_MeleeSwing_C,1,150,,,axe,3,근접·채취 겸용 (수치 임시)
+bow,/Game/J3/Abilities/GA_BowShot.GA_BowShot_C,1,3000,,arrow,,,원거리·화살 소모 (수치 임시)
+stone_pickaxe,,,,,,pickaxe,2,채취 도구 (수치 임시)
+iron_pickaxe,,,,,,pickaxe,3,채취 도구 (수치 임시)

@@ -31,6 +31,7 @@ UJ3WeaponAbility::UJ3WeaponAbility()
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	ActivationBlockedTags.AddTag(J3Tags::State_Dead);
+	ActivationBlockedTags.AddTag(J3Tags::State_Harvesting);
 }
 
 

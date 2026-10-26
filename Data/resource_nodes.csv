@@ -1,0 +1,10 @@
+id,name_ko,item,yield,harvest_sec,tool_tag,required_tag,note
+bush,덤불,branch,1,2,axe,,T0 맨손 (수치 임시)
+rock,바위,stone,1,2,pickaxe,,T0 맨손 (수치 임시)
+grass,풀숲,plant_fiber,1,1.5,,,T0 맨손 (수치 임시)
+berry_bush,열매 덤불,berry,1,1.5,,,T0 음식 (수치 임시)
+tree,나무,log,1,3,axe,,T1 (수치 임시)
+quarry,채석장,stone_block,1,3,pickaxe,,T1 (수치 임시)
+iron_deposit,철광석 광맥,iron_ore,1,3,pickaxe,pickaxe,T1 곡괭이 필요 (제안)
+copper_deposit,구리광석 광맥,copper_ore,1,3,pickaxe,pickaxe,T1 곡괭이 필요 (제안)
+coal_deposit,석탄 광맥,coal,1,3,pickaxe,pickaxe,T1 곡괭이 필요 (제안)

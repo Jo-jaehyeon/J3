@@ -16,6 +16,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputActionValue.h"
 #include "Inventory/J3InventoryComponent.h"
+#include "Player/J3HarvestComponent.h"
 
 
 AJ3Character::AJ3Character()
@@ -24,6 +25,10 @@ AJ3Character::AJ3Character()
 	bUseControllerRotationYaw = true;
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
+
+
+	// 채취
+	Harvest = CreateDefaultSubobject<UJ3HarvestComponent>(TEXT("Harvest"));
 
 
 	// 시점 카메라
@@ -66,7 +71,7 @@ void AJ3Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	if (JumpAction != nullptr)
 	{
 		// 점프 높이·체공은 CharacterMovement 설정(BP_J3Character)에서 조정한다
-		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &AJ3Character::TryJump);
 		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 	}
 	if (CycleEquipmentAction != nullptr)
@@ -242,8 +247,28 @@ AActor* AJ3Character::FindInteractTarget() const
 }
 
 
+bool AJ3Character::IsHarvesting() const
+{
+	const UAbilitySystemComponent* AbilitySystem = GetAbilitySystemComponent();
+	return AbilitySystem != nullptr && AbilitySystem->HasMatchingGameplayTag(J3Tags::State_Harvesting);
+}
+
+
+void AJ3Character::TryJump()
+{
+	if (!IsHarvesting())
+	{
+		Jump();
+	}
+}
+
+
 void AJ3Character::Interact()
 {
+	if (IsHarvesting())
+	{
+		return;
+	}
 	AActor* Target = FindInteractTarget();
 	if (Target != nullptr)
 	{
@@ -256,7 +281,7 @@ void AJ3Character::Server_Interact_Implementation(AActor* Target)
 {
 	// 서버 확인: 상호작용 대상인지, 지금 가능한지, 거리 안인지 (클라이언트·서버 위치 차이만큼 여유)
 	IJ3Interactable* Interactable = Cast<IJ3Interactable>(Target);
-	if (Interactable == nullptr || !Interactable->CanInteract(this))
+	if (Interactable == nullptr || IsHarvesting() || !Interactable->CanInteract(this))
 	{
 		return;
 	}

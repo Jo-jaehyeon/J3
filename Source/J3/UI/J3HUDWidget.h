@@ -34,6 +34,9 @@ public:
 	FVector2D BarSize = FVector2D(160.f, 12.f);
 
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Style")
+	FLinearColor HarvestColor = FLinearColor(0.9f, 0.9f, 0.9f);
+
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Style")
 	float ScreenMargin = 24.f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Style")
@@ -53,6 +56,7 @@ private:
 	void BuildStats(class UCanvasPanel* Root);
 	void BuildEquipment(class UCanvasPanel* Root);
 	void BuildCrosshair(class UCanvasPanel* Root);
+	void BuildHarvestBar(class UCanvasPanel* Root);
 	FStatRow AddStatRow(class UVerticalBox* Box, const FText& Label, const FLinearColor& Color);
 	static void SetStat(const FStatRow& Row, float Current, float Max);
 
@@ -63,4 +67,8 @@ private:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UJ3ItemSlotWidget>> EquipmentSlots;
+
+	// 채취 진행 막대 (채취 중에만 보임)
+	UPROPERTY()
+	TObjectPtr<UProgressBar> HarvestBar;
 };

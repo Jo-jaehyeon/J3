@@ -10,6 +10,7 @@
 
 class UAbilitySystemComponent;
 class UCameraComponent;
+class UJ3HarvestComponent;
 class UInputAction;
 class UStaticMeshComponent;
 struct FInputActionValue;
@@ -38,10 +39,23 @@ public:
 		return FirstPersonCamera;
 	}
 
+	UJ3HarvestComponent* GetHarvest() const
+	{
+		return Harvest;
+	}
+
+	// 플레이어 몸(캡슐)에서 대상 표면까지 거리. G키 거리 1m는 이 거리로 잰다.
+	float GetBodyDistanceTo(const AActor* Target) const;
+
+	// 채취 중인지 (점프·상호작용 막기, 시점 회전 범위 제한)
+	bool IsHarvesting() const;
+
 protected:
 	class UJ3InventoryComponent* GetInventory() const;
 
 	void InitAbilityActorInfo();
+
+	void TryJump();
 	void OnDeadTagChanged(const FGameplayTag Tag, int32 NewCount);
 
 	void Move(const FInputActionValue& Value);
@@ -57,8 +71,10 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void Server_Interact(AActor* Target);
 
-	// 플레이어 몸(캡슐)에서 대상 표면까지 거리. G키 거리 1m는 이 거리로 잰다.
-	float GetBodyDistanceTo(const AActor* Target) const;
+
+	// 자원 노드 채취 (G키)
+	UPROPERTY(VisibleAnywhere, Category = "J3|Harvest")
+	TObjectPtr<UJ3HarvestComponent> Harvest;
 
 
 	// 시점

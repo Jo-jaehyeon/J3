@@ -16,6 +16,8 @@
 #include "Core/J3PlayerState.h"
 #include "Data/J3DataSubsystem.h"
 #include "Inventory/J3InventoryComponent.h"
+#include "Player/J3Character.h"
+#include "Player/J3HarvestComponent.h"
 #include "UI/J3ItemSlotWidget.h"
 
 #define LOCTEXT_NAMESPACE "J3HUD"
@@ -43,6 +45,7 @@ void UJ3HUDWidget::NativeOnInitialized()
 	BuildStats(Root);
 	BuildEquipment(Root);
 	BuildCrosshair(Root);
+	BuildHarvestBar(Root);
 }
 
 
@@ -116,6 +119,20 @@ void UJ3HUDWidget::BuildCrosshair(UCanvasPanel* Root)
 }
 
 
+void UJ3HUDWidget::BuildHarvestBar(UCanvasPanel* Root)
+{
+	// 조준점 아래: 채취 진행도
+	USizeBox* Box = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+	Box->SetWidthOverride(BarSize.X);
+	Box->SetHeightOverride(BarSize.Y * 0.5f);
+	HarvestBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass());
+	HarvestBar->SetFillColorAndOpacity(HarvestColor);
+	HarvestBar->SetVisibility(ESlateVisibility::Collapsed);
+	Box->AddChild(HarvestBar);
+	J3HUDWidgetPrivate::Anchor(Root->AddChildToCanvas(Box), FVector2D(0.5f, 0.5f), FVector2D(0.f, 40.f));
+}
+
+
 void UJ3HUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
@@ -130,6 +147,13 @@ void UJ3HUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	SetStat(HealthRow, Attributes->GetHealth(), Attributes->GetMaxHealth());
 	SetStat(HungerRow, Attributes->GetHunger(), Attributes->GetMaxHunger());
 	SetStat(ThirstRow, Attributes->GetThirst(), Attributes->GetMaxThirst());
+
+
+	// 채취 진행도
+	const AJ3Character* Character = Cast<AJ3Character>(GetOwningPlayerPawn());
+	const float HarvestProgress = Character != nullptr ? Character->GetHarvest()->GetProgress() : -1.f;
+	HarvestBar->SetVisibility(HarvestProgress >= 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	HarvestBar->SetPercent(FMath::Max(0.f, HarvestProgress));
 
 
 	// 장비 칸

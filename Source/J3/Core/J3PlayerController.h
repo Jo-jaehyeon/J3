@@ -31,6 +31,9 @@ protected:
 
 	virtual void BeginPlay() override;
 
+	// 채취 중에는 시점을 시작 방향 기준 일정 각도 안으로 묶는다 (채취는 집중하는 행동)
+	virtual void UpdateRotation(float DeltaTime) override;
+
 	// 기본 키 배치 (Dev_Handoff 6절). 에셋은 BP_J3PlayerController에서 지정한다.
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
@@ -48,4 +51,8 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UJ3InventoryWidget> InventoryWidget;
+
+	// 채취를 시작한 순간의 시점 방향
+	bool bWasHarvesting = false;
+	FRotator HarvestLookCenter;
 };

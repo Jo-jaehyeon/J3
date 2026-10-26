@@ -190,12 +190,13 @@ bool FJ3DataLoader::LoadAll(const FString& DataDir, FJ3GameData& OutData, FJ3Dat
 {
 	// 표 읽기. 표 하나가 실패해도 나머지 표의 오류까지 한 번에 보여 주려고 끝까지 읽는다.
 	TArray<FString> RawContents;
-	RawContents.SetNum(5);
+	RawContents.SetNum(6);
 	LoadItems(DataDir, OutData, Report, RawContents[0]);
 	LoadRecipes(DataDir, OutData, Report, RawContents[1]);
 	LoadBuildings(DataDir, OutData, Report, RawContents[2]);
 	LoadConfig(DataDir, OutData, Report, RawContents[3]);
 	LoadEquipment(DataDir, OutData, Report, RawContents[4]);
+	LoadResourceNodes(DataDir, OutData, Report, RawContents[5]);
 
 
 	// 컨베이어용 아이템 종류 번호
@@ -298,7 +299,7 @@ void FJ3DataLoader::LoadEquipment(const FString& DataDir, FJ3GameData& OutData, 
 	using namespace J3DataLoaderPrivate;
 
 	FJ3CsvTable Table;
-	if (!OpenTable(Table, DataDir, TEXT("equipment.csv"), { "id", "ability", "damage", "range_cm", "cooldown_sec", "ammo" }, Report, OutRaw))
+	if (!OpenTable(Table, DataDir, TEXT("equipment.csv"), { "id", "ability", "damage", "range_cm", "cooldown_sec", "ammo", "harvest_tag", "harvest_multiplier" }, Report, OutRaw))
 	{
 		return;
 	}
@@ -309,12 +310,45 @@ void FJ3DataLoader::LoadEquipment(const FString& DataDir, FJ3GameData& OutData, 
 		FRowReader Reader{ Table, Row, Report };
 		FJ3EquipmentDef Def;
 		Def.Id = FName(*Reader.Required("id"));
-		Def.Ability = FSoftClassPath(Reader.Required("ability"));
+		Def.Ability = FSoftClassPath(Reader.Optional("ability"));
 		Def.Damage = Reader.OptionalFloat("damage", 0.f);
 		Def.RangeCm = Reader.OptionalFloat("range_cm", 0.f);
 		Def.CooldownSec = Reader.OptionalFloat("cooldown_sec", -1.f);
 		Def.AmmoItem = FName(*Reader.Optional("ammo"));
+		Def.HarvestTag = FName(*Reader.Optional("harvest_tag"));
+		Def.HarvestMultiplier = Reader.OptionalFloat("harvest_multiplier", 1.f);
 		AddUnique(OutData.Equipment, &OutData.EquipmentLines, MoveTemp(Def), Reader);
+	}
+}
+
+
+void FJ3DataLoader::LoadResourceNodes(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw)
+{
+	using namespace J3DataLoaderPrivate;
+
+	FJ3CsvTable Table;
+	if (!OpenTable(Table, DataDir, TEXT("resource_nodes.csv"), { "id", "name_ko", "item", "yield", "harvest_sec", "tool_tag", "required_tag" }, Report, OutRaw))
+	{
+		return;
+	}
+
+
+	for (const FJ3CsvTable::FRow& Row : Table.GetRows())
+	{
+		FRowReader Reader{ Table, Row, Report };
+		FJ3ResourceNodeDef Def;
+		Def.Id = FName(*Reader.Required("id"));
+		Def.DisplayName = FText::FromString(Reader.Required("name_ko"));
+		Def.ItemId = FName(*Reader.Required("item"));
+		Def.Yield = Reader.RequiredInt("yield");
+		Def.HarvestSec = Reader.OptionalFloat("harvest_sec", -1.f);
+		Def.ToolTag = FName(*Reader.Optional("tool_tag"));
+		Def.RequiredTag = FName(*Reader.Optional("required_tag"));
+		if (Def.Yield <= 0 || Def.HarvestSec <= 0.f)
+		{
+			Reader.Error(TEXT("yield와 harvest_sec는 0보다 커야 합니다"));
+		}
+		AddUnique(OutData.ResourceNodes, &OutData.ResourceNodeLines, MoveTemp(Def), Reader);
 	}
 }
 

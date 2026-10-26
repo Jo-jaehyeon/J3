@@ -2,6 +2,9 @@
 
 #include "Inventory/J3InventoryComponent.h"
 
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
+#include "Abilities/J3GameplayTags.h"
 #include "Data/J3DataSubsystem.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/J3InventoryLogic.h"
@@ -72,6 +75,15 @@ void UJ3InventoryComponent::BeginPlay()
 }
 
 
+bool UJ3InventoryComponent::CanChangeEquipment() const
+{
+	// 채취는 집중하는 행동이라 그동안 장비를 바꿀 수 없다
+	const IAbilitySystemInterface* Owner = Cast<IAbilitySystemInterface>(GetOwner());
+	const UAbilitySystemComponent* AbilitySystem = Owner != nullptr ? Owner->GetAbilitySystemComponent() : nullptr;
+	return AbilitySystem == nullptr || !AbilitySystem->HasMatchingGameplayTag(J3Tags::State_Harvesting);
+}
+
+
 bool UJ3InventoryComponent::IsEquippable(FName ItemId)
 {
 	const FJ3ItemDef* Item = UJ3DataSubsystem::Get()->GetItem(ItemId);
@@ -121,7 +133,7 @@ bool UJ3InventoryComponent::EquipFromSlot(int32 SlotIndex)
 	check(GetOwner()->HasAuthority());
 
 	// 장비 가능한 아이템인지
-	if (!Slots.IsValidIndex(SlotIndex) || Slots[SlotIndex].IsEmpty() || !IsEquippable(Slots[SlotIndex].ItemId))
+	if (!CanChangeEquipment() || !Slots.IsValidIndex(SlotIndex) || Slots[SlotIndex].IsEmpty() || !IsEquippable(Slots[SlotIndex].ItemId))
 	{
 		return false;
 	}
@@ -153,7 +165,7 @@ bool UJ3InventoryComponent::UnequipToInventory(int32 EquipIndex)
 	check(GetOwner()->HasAuthority());
 
 	// 인벤토리에 자리가 있을 때만 뺀다
-	if (!Equipment.IsValidIndex(EquipIndex) || Equipment[EquipIndex].IsEmpty())
+	if (!CanChangeEquipment() || !Equipment.IsValidIndex(EquipIndex) || Equipment[EquipIndex].IsEmpty())
 	{
 		return false;
 	}
@@ -175,7 +187,7 @@ bool UJ3InventoryComponent::SwapEquipment(int32 EquipIndexA, int32 EquipIndexB)
 {
 	check(GetOwner()->HasAuthority());
 
-	if (!Equipment.IsValidIndex(EquipIndexA) || !Equipment.IsValidIndex(EquipIndexB) || EquipIndexA == EquipIndexB)
+	if (!CanChangeEquipment() || !Equipment.IsValidIndex(EquipIndexA) || !Equipment.IsValidIndex(EquipIndexB) || EquipIndexA == EquipIndexB)
 	{
 		return false;
 	}
@@ -216,7 +228,7 @@ void UJ3InventoryComponent::CycleHeldEquipment(int32 Direction)
 	check(GetOwner()->HasAuthority());
 
 	const int32 NextIndex = J3InventoryLogic::NextActiveIndex(Equipment, HeldEquipIndex, Direction);
-	if (NextIndex == HeldEquipIndex)
+	if (!CanChangeEquipment() || NextIndex == HeldEquipIndex)
 	{
 		return;
 	}

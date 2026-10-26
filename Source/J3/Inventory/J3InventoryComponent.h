@@ -91,6 +91,9 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
+	// 장비를 바꿀 수 있는 상태인지 (채취 중에는 불가)
+	bool CanChangeEquipment() const;
+
 	// 변경 뒤 공통 처리: 손에 든 장비 다시 계산, 알림
 	void NotifyChanged();
 	void RefreshHeldItem();
