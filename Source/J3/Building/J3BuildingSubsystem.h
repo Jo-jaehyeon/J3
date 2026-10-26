@@ -30,6 +30,13 @@ public:
 	// IgnoreActor: 미리보기 모형처럼 판정에서 빼야 할 액터
 	FJ3PlacementCheck CheckPlacement(FName BuildingId, const FVector& Location, float YawDeg, bool bGrid, const AJ3Character* Builder, const AActor* IgnoreActor = nullptr) const;
 
+	// 컨베이어: 시작점·끝점 조준으로 곡선을 정하고 판정한다 (Building_Placement 3절).
+	// 끝점은 맞는 포트(시작: 출력 포트, 끝: 입력 포트)나 비어 있는 다른 컨베이어 끝에 붙고, 없으면 조준한 바닥 위에 놓인다.
+	FJ3PlacementCheck CheckConveyor(FName BuildingId, const FVector& StartAim, const FVector& EndAim, const AJ3Character* Builder) const;
+
+	// 컨베이어 끝점 하나 정하기. bOutHasDirection: 포트·컨베이어에 붙어 방향이 정해졌다
+	bool ResolveConveyorEnd(bool bStart, const FVector& Aim, const AActor* Builder, FVector& OutLocation, FVector& OutDirection, bool& bOutHasDirection) const;
+
 	int32 CountBuildings(FName BuildingId) const;
 
 	int32 CountAllBuildings() const
@@ -74,6 +81,9 @@ private:
 
 	// 근처 건물의 맞는 포트와 마주 보게 놓는다 (Building_Placement 2.1, 보조 그리드와 상관없이 항상). 위치(XY)와 방향만 정한다
 	bool TrySnapToPort(TSubclassOf<AJ3BuildingBase> BuildingClass, const FVector& HalfExtent, const FVector& Location, FVector& OutLocation, float& OutYawDeg) const;
+
+	// 팀 해방·개수 제한·규모 상한·재료 (모든 건물 공통). 통과하면 Ok
+	EJ3PlacementResult CheckCommon(FName BuildingId, const struct FJ3BuildingDef& Def, const AJ3Character* Builder) const;
 
 	bool TraceGround(const FVector& Location, const AActor* Builder, const AActor* IgnoreActor, FHitResult& OutHit) const;
 

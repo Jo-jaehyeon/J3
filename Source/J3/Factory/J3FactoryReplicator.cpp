@@ -95,6 +95,8 @@ void AJ3FactoryReplicator::CopyToNet(const FJ3BeltSegment& Segment, FJ3SegmentNe
 	OutItem.SpacingCm = Segment.SpacingCm;
 	OutItem.StartLocation = Segment.StartLocation;
 	OutItem.EndLocation = Segment.EndLocation;
+	OutItem.StartDirection = Segment.StartDirection;
+	OutItem.EndDirection = Segment.EndDirection;
 	OutItem.Items.SetNum(Segment.Items.Num());
 	for (int32 Index = 0; Index < Segment.Items.Num(); ++Index)
 	{
@@ -196,6 +198,8 @@ void AJ3FactoryReplicator::ApplySegment(const FJ3SegmentNetItem& NetItem)
 	Segment.SpacingCm = NetItem.SpacingCm;
 	Segment.StartLocation = NetItem.StartLocation;
 	Segment.EndLocation = NetItem.EndLocation;
+	Segment.StartDirection = NetItem.StartDirection;
+	Segment.EndDirection = NetItem.EndDirection;
 	Segment.Items.SetNum(NetItem.Items.Num());
 	for (int32 Index = 0; Index < NetItem.Items.Num(); ++Index)
 	{

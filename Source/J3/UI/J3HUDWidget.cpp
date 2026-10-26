@@ -172,7 +172,8 @@ void UJ3HUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		const FJ3BuildingDef* Def = UJ3DataSubsystem::Get()->GetBuilding(BuildMode->GetSelectedBuildingId());
 		const FJ3PlacementCheck& Check = BuildMode->GetLastCheck();
 		const FText GridText = BuildMode->IsGridEnabled() ? LOCTEXT("GridOn", "그리드 켜짐") : LOCTEXT("GridOff", "그리드 꺼짐");
-		BuildModeText->SetText(FText::Format(LOCTEXT("BuildMode", "{0}   ({2})\n{1}\n좌클릭: 설치   휠: 회전   T: 그리드   가운데 클릭: 같은 건물   우클릭·Esc: 취소"),
+		const FText ConveyorStep = BuildMode->HasConveyorStart() ? LOCTEXT("ConveyorEnd", "좌클릭: 끝점 (입력 포트에 붙이기)   우클릭·Esc: 시작점 취소") : LOCTEXT("ConveyorStart", "좌클릭: 시작점 (출력 포트·컨베이어 끝에 붙이기)   우클릭·Esc: 취소");
+		BuildModeText->SetText(BuildMode->IsConveyorMode() ? FText::Format(LOCTEXT("ConveyorMode", "{0}\n{1}\n{2}"), Def != nullptr ? Def->DisplayName : FText::GetEmpty(), J3Building::GetResultText(Check.Result), ConveyorStep) : FText::Format(LOCTEXT("BuildMode", "{0}   ({2})\n{1}\n좌클릭: 설치   휠: 회전   T: 그리드   가운데 클릭: 같은 건물   우클릭·Esc: 취소"),
 			Def != nullptr ? Def->DisplayName : FText::GetEmpty(), J3Building::GetResultText(Check.Result), GridText));
 		BuildModeText->SetColorAndOpacity(Check.IsOk() ? FSlateColor(FLinearColor::White) : FSlateColor(FLinearColor(1.f, 0.35f, 0.3f)));
 		BuildModeText->SetVisibility(ESlateVisibility::HitTestInvisible);

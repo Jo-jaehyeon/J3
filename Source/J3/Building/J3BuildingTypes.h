@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Factory/J3ConveyorPath.h"
 #include "J3BuildingTypes.generated.h"
 
 
@@ -21,6 +22,9 @@ enum class EJ3PlacementResult : uint8
 	TooSteep,
 	Overlapping,
 	NeedsResourceNode,
+	ConveyorTooShort,
+	ConveyorTooLong,
+	ConveyorTooSharp,
 };
 
 
@@ -36,6 +40,9 @@ struct FJ3PlacementCheck
 	// 지면·건물 위에 놓인 최종 위치 (원점 = 바닥 가운데)
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Building")
 	FTransform Transform;
+
+	// 컨베이어: 확정된 곡선 (시작 = Transform 위치)
+	FJ3ConveyorPath ConveyorPath;
 
 	bool IsOk() const
 	{

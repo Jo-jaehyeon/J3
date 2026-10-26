@@ -29,6 +29,12 @@ namespace J3Building
 			return LOCTEXT("NoGround", "놓을 바닥이 없습니다");
 		case EJ3PlacementResult::NeedsResourceNode:
 			return LOCTEXT("NeedsResourceNode", "맞는 자원 위에만 설치할 수 있습니다");
+		case EJ3PlacementResult::ConveyorTooShort:
+			return LOCTEXT("ConveyorTooShort", "컨베이어가 너무 짧습니다");
+		case EJ3PlacementResult::ConveyorTooLong:
+			return LOCTEXT("ConveyorTooLong", "컨베이어가 너무 깁니다");
+		case EJ3PlacementResult::ConveyorTooSharp:
+			return LOCTEXT("ConveyorTooSharp", "너무 급하게 꺾입니다");
 		case EJ3PlacementResult::TooSteep:
 			return LOCTEXT("TooSteep", "경사가 너무 급합니다 (토대 위에 설치하세요)");
 		case EJ3PlacementResult::Overlapping:

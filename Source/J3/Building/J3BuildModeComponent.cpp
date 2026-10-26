@@ -3,6 +3,8 @@
 #include "Building/J3BuildModeComponent.h"
 
 #include "Building/J3BuildPreview.h"
+#include "Building/J3ConveyorBuilding.h"
+#include "Building/J3ConveyorPreview.h"
 #include "Building/J3BuilderComponent.h"
 #include "Building/J3BuildingBase.h"
 #include "Building/J3BuildingSubsystem.h"
@@ -55,15 +57,22 @@ void UJ3BuildModeComponent::BeginPlacing(FName BuildingId)
 	EndDemolish();
 
 
-	// 미리보기 모형 (이 PC에서만)
+	// 미리보기 모형 (이 PC에서만). 컨베이어는 곡선 미리보기를 따로 쓴다
+	FActorSpawnParameters Params;
+	Params.ObjectFlags |= RF_Transient;
 	if (Preview == nullptr)
 	{
-		FActorSpawnParameters Params;
-		Params.ObjectFlags |= RF_Transient;
 		Preview = GetWorld()->SpawnActor<AJ3BuildPreview>(AJ3BuildPreview::StaticClass(), Params);
 	}
+	if (ConveyorPreview == nullptr)
+	{
+		ConveyorPreview = GetWorld()->SpawnActor<AJ3ConveyorPreview>(AJ3ConveyorPreview::StaticClass(), Params);
+	}
+	bConveyorMode = BuildingClass->IsChildOf<AJ3ConveyorBuilding>();
+	bHasConveyorStart = false;
 	Preview->SetBuildingClass(BuildingClass);
-	Preview->SetActorHiddenInGame(false);
+	Preview->SetActorHiddenInGame(bConveyorMode);
+	ConveyorPreview->SetActorHiddenInGame(!bConveyorMode);
 	SelectedBuildingId = BuildingId;
 	UpdatePreview();
 }
@@ -72,9 +81,15 @@ void UJ3BuildModeComponent::BeginPlacing(FName BuildingId)
 void UJ3BuildModeComponent::EndPlacing()
 {
 	SelectedBuildingId = NAME_None;
+	bConveyorMode = false;
+	bHasConveyorStart = false;
 	if (Preview != nullptr)
 	{
 		Preview->SetActorHiddenInGame(true);
+	}
+	if (ConveyorPreview != nullptr)
+	{
+		ConveyorPreview->SetActorHiddenInGame(true);
 	}
 }
 
@@ -93,6 +108,26 @@ void UJ3BuildModeComponent::Confirm()
 	const AJ3PlayerState* PlayerState = Cast<APlayerController>(GetOwner())->GetPlayerState<AJ3PlayerState>();
 	if (!IsPlacing() || !LastCheck.IsOk() || PlayerState == nullptr)
 	{
+		return;
+	}
+
+
+	// 컨베이어: 첫 클릭은 시작점, 두 번째 클릭에 설치. 끝이 비어 있으면(포트·컨베이어에 안 붙음) 그 끝에서 이어 놓는다
+	if (bConveyorMode)
+	{
+		if (!bHasConveyorStart)
+		{
+			ConveyorStartAim = LastAimLocation;
+			bHasConveyorStart = true;
+			return;
+		}
+		PlayerState->GetBuilder()->Server_PlaceConveyor(SelectedBuildingId, ConveyorStartAim, LastAimLocation);
+		FVector EndLocation;
+		FVector EndDirection;
+		bool bEndSnapped = false;
+		GetWorld()->GetSubsystem<UJ3BuildingSubsystem>()->ResolveConveyorEnd(false, LastAimLocation, GetOwner<APlayerController>()->GetPawn(), EndLocation, EndDirection, bEndSnapped);
+		bHasConveyorStart = !bEndSnapped;
+		ConveyorStartAim = LastCheck.ConveyorPath.End;
 		return;
 	}
 	PlayerState->GetBuilder()->Server_PlaceBuilding(SelectedBuildingId, LastAimLocation, YawDeg, bGrid);
@@ -274,6 +309,11 @@ void UJ3BuildModeComponent::UpdatePreview()
 		return;
 	}
 	LastAimLocation = Hit.ImpactPoint;
+	if (bConveyorMode)
+	{
+		UpdateConveyorPreview(LastAimLocation);
+		return;
+	}
 
 
 	// 서버와 같은 판정으로 위치와 색을 정한다 (바닥을 못 찾으면 조준점에 그대로 둔다)
@@ -285,4 +325,34 @@ void UJ3BuildModeComponent::UpdatePreview()
 	Preview->SetActorTransform(Transform);
 	Preview->SetActorHiddenInGame(false);
 	Preview->SetValid(LastCheck.IsOk());
+}
+
+
+void UJ3BuildModeComponent::UpdateConveyorPreview(const FVector& Aim)
+{
+	// 시작점 고르기 전: 붙을 점 표시 (재료·해방은 끝점을 고를 때 본다)
+	const UJ3BuildingSubsystem* Buildings = GetWorld()->GetSubsystem<UJ3BuildingSubsystem>();
+	const AJ3Character* Builder = Cast<AJ3Character>(Cast<APlayerController>(GetOwner())->GetPawn());
+	if (!bHasConveyorStart)
+	{
+		FVector Location;
+		FVector Direction;
+		bool bSnapped = false;
+		const bool bFound = Buildings->ResolveConveyorEnd(true, Aim, Builder, Location, Direction, bSnapped);
+		LastCheck = FJ3PlacementCheck();
+		LastCheck.Result = bFound ? EJ3PlacementResult::Ok : EJ3PlacementResult::NoGround;
+		ConveyorPreview->SetActorHiddenInGame(!bFound);
+		ConveyorPreview->SetMarker(Location, Direction, bFound);
+		return;
+	}
+
+
+	// 끝점 고르는 중: 서버와 같은 판정으로 곡선과 색
+	LastCheck = Buildings->CheckConveyor(SelectedBuildingId, ConveyorStartAim, Aim, Builder);
+	const bool bHasPath = !LastCheck.ConveyorPath.Start.Equals(LastCheck.ConveyorPath.End);
+	ConveyorPreview->SetActorHiddenInGame(!bHasPath);
+	if (bHasPath)
+	{
+		ConveyorPreview->SetPath(LastCheck.ConveyorPath, LastCheck.IsOk());
+	}
 }

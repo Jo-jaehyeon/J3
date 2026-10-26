@@ -321,6 +321,17 @@ bool UJ3FactorySimSubsystem::InsertItem(int32 SegmentId, FJ3ItemTypeId Type)
 }
 
 
+void UJ3FactorySimSubsystem::SetSegmentNext(int32 SegmentId, int32 NextId)
+{
+	FJ3BeltSegment* Segment = FindSegmentMutable(SegmentId);
+	if (Segment != nullptr && Segment->NextId != NextId)
+	{
+		Segment->NextId = NextId;
+		NotifySegmentsChanged({ SegmentId });
+	}
+}
+
+
 const FJ3BeltSegment* UJ3FactorySimSubsystem::FindSegment(int32 SegmentId) const
 {
 	const int32* Index = IndexById.Find(SegmentId);

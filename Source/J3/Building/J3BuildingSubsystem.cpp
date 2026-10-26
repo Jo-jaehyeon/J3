@@ -3,6 +3,7 @@
 #include "Building/J3BuildingSubsystem.h"
 
 #include "Building/J3BuildingBase.h"
+#include "Building/J3ConveyorBuilding.h"
 #include "Core/J3GameState.h"
 #include "Core/J3PlayerState.h"
 #include "Data/J3DataSubsystem.h"
@@ -340,6 +341,172 @@ bool UJ3BuildingSubsystem::ResolveTransform(FName BuildingId, const FVector& Hal
 }
 
 
+EJ3PlacementResult UJ3BuildingSubsystem::CheckCommon(FName BuildingId, const FJ3BuildingDef& Def, const AJ3Character* Builder) const
+{
+	// 해방·개수 제한·규모 상한 (팀 상태)
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	const AJ3GameState* GameState = GetWorld()->GetGameState<AJ3GameState>();
+	if (GameState == nullptr || !GameState->IsUnlocked(Def.Unlock))
+	{
+		return EJ3PlacementResult::NotUnlocked;
+	}
+	if (Def.Limit > 0 && CountBuildings(BuildingId) >= Def.Limit)
+	{
+		return EJ3PlacementResult::AtLimit;
+	}
+	if (CountAllBuildings() >= Data->GetConfigInt("max_buildings", 2000))
+	{
+		return EJ3PlacementResult::AtScaleCap;
+	}
+
+
+	// 재료 (건설하는 사람의 인벤토리)
+	const AJ3PlayerState* PlayerState = Builder->GetPlayerState<AJ3PlayerState>();
+	if (PlayerState == nullptr || !J3InventoryLogic::HasAll(PlayerState->GetInventory()->GetSlots(), Def.BuildInputs))
+	{
+		return EJ3PlacementResult::MissingMaterials;
+	}
+	return EJ3PlacementResult::Ok;
+}
+
+
+bool UJ3BuildingSubsystem::ResolveConveyorEnd(bool bStart, const FVector& Aim, const AActor* Builder, FVector& OutLocation, FVector& OutDirection, bool& bOutHasDirection) const
+{
+	// 근처 건물 (컨베이어는 시작점에 등록되어 있어 끝점을 찾으려면 최대 길이만큼 넓게 본다)
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	const float SnapCm = Data->GetConfigFloat("build_port_snap_radius_cm", 150.f);
+	const float SearchCm = Data->GetConfigFloat("conveyor_max_length_cm", 3000.f) + SnapCm;
+	const TArray<AJ3BuildingBase*> Nearby = FindBuildingsInBox(FBox(Aim - FVector(SearchCm), Aim + FVector(SearchCm)));
+
+
+	// 붙을 수 있는 점: 시작은 출력 포트·컨베이어 끝, 끝은 입력 포트·컨베이어 시작. 이미 다른 컨베이어가 쓰는 점은 뺀다
+	TArray<TPair<FVector, FVector>> Candidates;
+	TArray<FVector> UsedPoints;
+	for (const AJ3BuildingBase* Building : Nearby)
+	{
+		const AJ3ConveyorBuilding* Conveyor = Cast<AJ3ConveyorBuilding>(Building);
+		if (Conveyor != nullptr)
+		{
+			const FJ3ConveyorPath Path = Conveyor->GetPath();
+			Candidates.Emplace(bStart ? Path.End : Path.Start, bStart ? Path.EndDirection : Path.StartDirection);
+			UsedPoints.Add(bStart ? Path.Start : Path.End);
+			continue;
+		}
+		TArray<FJ3PortInfo> Ports;
+		Building->GetPorts(Ports);
+		for (const FJ3PortInfo& Port : Ports)
+		{
+			const bool bWanted = Port.Kind == EJ3PortKind::Item && Port.Direction == (bStart ? EJ3PortDirection::Out : EJ3PortDirection::In);
+			if (bWanted)
+			{
+				// 포트의 X축은 바깥을 향한다: 출력은 그 방향으로 나가고, 입력은 반대 방향으로 들어온다
+				const FVector Outward = Port.Transform.GetRotation().GetForwardVector();
+				Candidates.Emplace(Port.Transform.GetLocation(), bStart ? Outward : -Outward);
+			}
+		}
+	}
+
+
+	// 조준점에 가장 가까운 비어 있는 점
+	float BestDistance = SnapCm;
+	bOutHasDirection = false;
+	for (const TPair<FVector, FVector>& Candidate : Candidates)
+	{
+		const bool bUsed = UsedPoints.ContainsByPredicate([&Candidate](const FVector& Point) { return FVector::Dist(Point, Candidate.Key) <= 2.f; });
+		const float Distance = FVector::Dist(Candidate.Key, Aim);
+		if (!bUsed && Distance < BestDistance)
+		{
+			BestDistance = Distance;
+			OutLocation = Candidate.Key;
+			OutDirection = Candidate.Value.GetSafeNormal();
+			bOutHasDirection = true;
+		}
+	}
+	if (bOutHasDirection)
+	{
+		return true;
+	}
+
+
+	// 붙을 곳이 없으면 바닥 위 포트 높이에 놓는다
+	FHitResult Ground;
+	if (!TraceGround(Aim, Builder, nullptr, Ground))
+	{
+		return false;
+	}
+	OutLocation = J3Building::QuantizeLocation(Ground.ImpactPoint + FVector(0.f, 0.f, Data->GetConfigFloat("conveyor_height_cm", 50.f)));
+	OutDirection = FVector::ForwardVector;
+	return true;
+}
+
+
+FJ3PlacementCheck UJ3BuildingSubsystem::CheckConveyor(FName BuildingId, const FVector& StartAim, const FVector& EndAim, const AJ3Character* Builder) const
+{
+	FJ3PlacementCheck Check;
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	const FJ3BuildingDef* Def = Data->GetBuilding(BuildingId);
+	if (Def == nullptr || Builder == nullptr)
+	{
+		Check.Result = EJ3PlacementResult::UnknownBuilding;
+		return Check;
+	}
+
+
+	// 두 끝점. 방향이 정해지지 않은 끝은 두 점을 잇는 방향 (평면 위)
+	FJ3ConveyorPath& Path = Check.ConveyorPath;
+	bool bStartDirected = false;
+	bool bEndDirected = false;
+	if (!ResolveConveyorEnd(true, StartAim, Builder, Path.Start, Path.StartDirection, bStartDirected) || !ResolveConveyorEnd(false, EndAim, Builder, Path.End, Path.EndDirection, bEndDirected))
+	{
+		Check.Result = EJ3PlacementResult::NoGround;
+		return Check;
+	}
+	const FVector Chord = (Path.End - Path.Start).GetSafeNormal();
+	Path.StartDirection = bStartDirected ? Path.StartDirection : Chord;
+	Path.EndDirection = bEndDirected ? Path.EndDirection : Chord;
+	Check.Transform = FTransform(Path.StartDirection.Rotation(), Path.Start);
+
+
+	// 공통 (해방·상한·재료)
+	Check.Result = CheckCommon(BuildingId, *Def, Builder);
+	if (!Check.IsOk())
+	{
+		return Check;
+	}
+
+
+	// 거리: 두 끝 모두 건설 거리 안
+	const float RangeCm = Data->GetConfigFloat("build_range_cm", 1500.f);
+	if (FVector::Dist(Builder->GetActorLocation(), Path.Start) > RangeCm || FVector::Dist(Builder->GetActorLocation(), Path.End) > RangeCm)
+	{
+		Check.Result = EJ3PlacementResult::TooFar;
+		return Check;
+	}
+
+
+	// 길이와 꺾임 (곡선 길이로 본다, Building_Placement 3절: 최소 곡률 제한)
+	// TODO(기획-제안): 다른 건물과 겹치는 컨베이어를 막을지
+	const float Length = Path.ComputeLength();
+	if (Length < Data->GetConfigFloat("conveyor_min_length_cm", 50.f))
+	{
+		Check.Result = EJ3PlacementResult::ConveyorTooShort;
+		return Check;
+	}
+	if (Length > Data->GetConfigFloat("conveyor_max_length_cm", 3000.f))
+	{
+		Check.Result = EJ3PlacementResult::ConveyorTooLong;
+		return Check;
+	}
+	if (Path.ComputeMinRadius() < Data->GetConfigFloat("conveyor_min_radius_cm", 100.f))
+	{
+		Check.Result = EJ3PlacementResult::ConveyorTooSharp;
+		return Check;
+	}
+	Check.Result = EJ3PlacementResult::Ok;
+	return Check;
+}
+
+
 FJ3PlacementCheck UJ3BuildingSubsystem::CheckPlacement(FName BuildingId, const FVector& Location, float YawDeg, bool bGrid, const AJ3Character* Builder, const AActor* IgnoreActor) const
 {
 	using namespace J3BuildingSubsystemPrivate;
@@ -348,8 +515,9 @@ FJ3PlacementCheck UJ3BuildingSubsystem::CheckPlacement(FName BuildingId, const F
 	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
 	const FJ3BuildingDef* Def = Data->GetBuilding(BuildingId);
 	const UClass* BuildingClass = Def != nullptr ? Def->BuildingClass.TryLoadClass<AJ3BuildingBase>() : nullptr;
-	if (BuildingClass == nullptr || Builder == nullptr)
+	if (BuildingClass == nullptr || Builder == nullptr || BuildingClass->IsChildOf<AJ3ConveyorBuilding>())
 	{
+		// 컨베이어는 CheckConveyor로 판정한다
 		Check.Result = EJ3PlacementResult::UnknownBuilding;
 		return Check;
 	}
@@ -379,30 +547,10 @@ FJ3PlacementCheck UJ3BuildingSubsystem::CheckPlacement(FName BuildingId, const F
 	}
 
 
-	// 해방·개수 제한·규모 상한 (팀 상태)
-	const AJ3GameState* GameState = GetWorld()->GetGameState<AJ3GameState>();
-	if (GameState == nullptr || !GameState->IsUnlocked(Def->Unlock))
+	// 해방·개수 제한·규모 상한·재료
+	Check.Result = CheckCommon(BuildingId, *Def, Builder);
+	if (!Check.IsOk())
 	{
-		Check.Result = EJ3PlacementResult::NotUnlocked;
-		return Check;
-	}
-	if (Def->Limit > 0 && CountBuildings(BuildingId) >= Def->Limit)
-	{
-		Check.Result = EJ3PlacementResult::AtLimit;
-		return Check;
-	}
-	if (CountAllBuildings() >= Data->GetConfigInt("max_buildings", 2000))
-	{
-		Check.Result = EJ3PlacementResult::AtScaleCap;
-		return Check;
-	}
-
-
-	// 재료 (건설하는 사람의 인벤토리)
-	const AJ3PlayerState* PlayerState = Builder->GetPlayerState<AJ3PlayerState>();
-	if (PlayerState == nullptr || !J3InventoryLogic::HasAll(PlayerState->GetInventory()->GetSlots(), Def->BuildInputs))
-	{
-		Check.Result = EJ3PlacementResult::MissingMaterials;
 		return Check;
 	}
 

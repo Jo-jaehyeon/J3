@@ -8,6 +8,7 @@
 #include "J3BuildModeComponent.generated.h"
 
 class AJ3BuildPreview;
+class AJ3ConveyorPreview;
 class AJ3BuildingBase;
 
 
@@ -15,6 +16,7 @@ class AJ3BuildingBase;
 // 같은 판정 함수로 파랑/빨강과 불가 사유를 보여 준다. 좌클릭으로 설치 요청, 휠로 회전, 우클릭·Esc로 끝낸다.
 // 숫자키 단축 칸(1~0)에 건물을 등록해 바로 들어갈 수 있고, 가운데 클릭으로 조준한 건물과 같은 건물을 고른다.
 // 철거 모드(F): 조준한 건물을 빨간 모형으로 표시하고 환급 재료를 보여 주며, 좌클릭을 길게 누르면 철거를 요청한다.
+// 컨베이어는 좌클릭 두 번(시작점 → 끝점)으로 놓고, 끝점이 비어 있으면 그 끝에서 이어서 놓는다. 우클릭·Esc는 시작점부터 취소.
 // 확정은 서버(UJ3BuilderComponent)가 한다.
 UCLASS(ClassGroup = (J3))
 class J3_API UJ3BuildModeComponent : public UActorComponent
@@ -42,11 +44,26 @@ public:
 		return IsPlacing() || IsDemolishing();
 	}
 
-	// 건설 모드를 모두 끝낸다 (우클릭·Esc)
+	// 우클릭·Esc: 컨베이어 시작점을 골랐으면 그것만 취소하고, 아니면 건설 모드를 모두 끝낸다
 	void EndAll()
 	{
+		if (bConveyorMode && bHasConveyorStart)
+		{
+			bHasConveyorStart = false;
+			return;
+		}
 		EndPlacing();
 		EndDemolish();
+	}
+
+	bool IsConveyorMode() const
+	{
+		return bConveyorMode;
+	}
+
+	bool HasConveyorStart() const
+	{
+		return bHasConveyorStart;
 	}
 
 	FName GetSelectedBuildingId() const
@@ -119,6 +136,7 @@ public:
 private:
 	bool TraceAim(FHitResult& OutHit) const;
 	void UpdatePreview();
+	void UpdateConveyorPreview(const FVector& Aim);
 	void UpdateDemolish(float DeltaTime);
 
 	FName SelectedBuildingId;
@@ -133,6 +151,14 @@ private:
 	// 철거 모드: 대상 위에 겹쳐 그리는 빨간 모형
 	UPROPERTY(Transient)
 	TObjectPtr<AJ3BuildPreview> DemolishHighlight;
+
+	// 컨베이어 놓기: 시작점 조준 (서버에 보낼 때 다시 판정한다)
+	bool bConveyorMode = false;
+	bool bHasConveyorStart = false;
+	FVector ConveyorStartAim = FVector::ZeroVector;
+
+	UPROPERTY(Transient)
+	TObjectPtr<AJ3ConveyorPreview> ConveyorPreview;
 
 	bool bDemolishing = false;
 	bool bPrimaryHeld = false;

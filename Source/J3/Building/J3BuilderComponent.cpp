@@ -3,6 +3,7 @@
 #include "Building/J3BuilderComponent.h"
 
 #include "Building/J3BuildingBase.h"
+#include "Building/J3ConveyorBuilding.h"
 #include "Building/J3BuildingSubsystem.h"
 #include "Core/J3PlayerState.h"
 #include "Data/J3DataSubsystem.h"
@@ -57,6 +58,29 @@ void UJ3BuilderComponent::Server_PlaceBuilding_Implementation(FName BuildingId, 
 	Building->SetBuildingId(BuildingId);
 	Building->FinishSpawning(Check.Transform);
 	UE_LOG(LogJ3Building, Log, TEXT("설치 %s %s"), *BuildingId.ToString(), *Check.Transform.GetLocation().ToCompactString());
+}
+
+
+void UJ3BuilderComponent::Server_PlaceConveyor_Implementation(FName BuildingId, FVector StartAim, FVector EndAim)
+{
+	// 서버 판정 → 재료 → 생성 (모양을 정한 뒤 마쳐 처음 복제부터 곡선이 들어가게 한다)
+	const UJ3BuildingSubsystem* Buildings = GetWorld()->GetSubsystem<UJ3BuildingSubsystem>();
+	const FJ3PlacementCheck Check = Buildings->CheckConveyor(BuildingId, StartAim, EndAim, GetBuilder());
+	const FJ3BuildingDef* Def = UJ3DataSubsystem::Get()->GetBuilding(BuildingId);
+	UClass* ConveyorClass = Def != nullptr ? Def->BuildingClass.TryLoadClass<AJ3ConveyorBuilding>() : nullptr;
+	if (!Check.IsOk() || ConveyorClass == nullptr)
+	{
+		UE_LOG(LogJ3Building, Display, TEXT("컨베이어 설치 거부: %s"), *J3Building::GetResultText(Check.Result).ToString());
+		return;
+	}
+	if (!Cast<AJ3PlayerState>(GetOwner())->GetInventory()->TryRemoveAll(Def->BuildInputs))
+	{
+		return;
+	}
+	AJ3ConveyorBuilding* Conveyor = GetWorld()->SpawnActorDeferred<AJ3ConveyorBuilding>(ConveyorClass, Check.Transform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	Conveyor->SetBuildingId(BuildingId);
+	Conveyor->SetPath(Check.ConveyorPath);
+	Conveyor->FinishSpawning(Check.Transform);
 }
 
 

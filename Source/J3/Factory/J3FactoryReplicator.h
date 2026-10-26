@@ -56,6 +56,12 @@ struct FJ3SegmentNetItem : public FFastArraySerializerItem
 	FVector_NetQuantize EndLocation;
 
 	UPROPERTY()
+	FVector_NetQuantizeNormal StartDirection;
+
+	UPROPERTY()
+	FVector_NetQuantizeNormal EndDirection;
+
+	UPROPERTY()
 	TArray<FJ3BeltItemNet> Items;
 
 	void PostReplicatedAdd(const FJ3SegmentNetArray& Array);

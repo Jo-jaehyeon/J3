@@ -39,6 +39,15 @@ public:
 
 	bool InsertItem(int32 SegmentId, FJ3ItemTypeId Type);
 
+	// 서버: 새 구간 번호 (컨베이어 건물마다 하나)
+	int32 AllocateSegmentId()
+	{
+		return NextSegmentId++;
+	}
+
+	// 서버: 이어지는 다음 구간을 바꾼다 (컨베이어를 잇거나 철거할 때)
+	void SetSegmentNext(int32 SegmentId, int32 NextId);
+
 	const FJ3BeltSegment* FindSegment(int32 SegmentId) const;
 	FJ3BeltSegment* FindSegmentMutable(int32 SegmentId);
 
@@ -101,6 +110,9 @@ private:
 	TArray<FJ3MachineState> Machines;
 	TMap<int32, TWeakObjectPtr<AJ3MachineBuilding>> MachineOwners;
 	int32 NextMachineId = 1;
+
+	// 컨베이어 건물 구간 번호 (벤치마크 구간과 겹치지 않게 큰 수부터)
+	int32 NextSegmentId = 1000000;
 
 	float FixedStepSec = 0.05f;
 	int32 MaxStepsPerFrame = 5;
