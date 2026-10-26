@@ -57,6 +57,7 @@ private:
 	void BuildEquipment(class UCanvasPanel* Root);
 	void BuildCrosshair(class UCanvasPanel* Root);
 	void BuildHarvestBar(class UCanvasPanel* Root);
+	FText BuildDemolishText(const class UJ3BuildModeComponent& BuildMode) const;
 	void BuildBuildModeText(class UCanvasPanel* Root);
 	FStatRow AddStatRow(class UVerticalBox* Box, const FText& Label, const FLinearColor& Color);
 	static void SetStat(const FStatRow& Row, float Current, float Max);

@@ -184,6 +184,10 @@ void AJ3Character::CycleEquipment(const FInputActionValue& Value)
 		J3Controller->GetBuildMode()->Rotate(Axis > 0.f ? 1 : -1);
 		return;
 	}
+	if (J3Controller != nullptr && J3Controller->GetBuildMode()->IsDemolishing())
+	{
+		return;
+	}
 
 
 	// 휠 한 칸 = 한 칸 이동. 바뀐 결과(손에 든 장비)는 서버가 정하고 복제한다.
@@ -207,11 +211,11 @@ void AJ3Character::ToggleInventory()
 
 void AJ3Character::Attack()
 {
-	// 건설 모드에서 우클릭은 취소 (Inventory_And_UI 1.3)
+	// 건설 모드(설치·철거)에서 우클릭은 취소 (Inventory_And_UI 1.3)
 	const AJ3PlayerController* J3Controller = Cast<AJ3PlayerController>(GetController());
-	if (J3Controller != nullptr && J3Controller->GetBuildMode()->IsPlacing())
+	if (J3Controller != nullptr && J3Controller->GetBuildMode()->IsActive())
 	{
-		J3Controller->GetBuildMode()->EndPlacing();
+		J3Controller->GetBuildMode()->EndAll();
 		return;
 	}
 

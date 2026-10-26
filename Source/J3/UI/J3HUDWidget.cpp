@@ -5,6 +5,7 @@
 #include "Abilities/J3SurvivalAttributeSet.h"
 #include "Blueprint/WidgetTree.h"
 #include "Building/J3BuildModeComponent.h"
+#include "Building/J3BuildingBase.h"
 #include "Core/J3PlayerController.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -175,15 +176,22 @@ void UJ3HUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		BuildModeText->SetColorAndOpacity(Check.IsOk() ? FSlateColor(FLinearColor::White) : FSlateColor(FLinearColor(1.f, 0.35f, 0.3f)));
 		BuildModeText->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
+	else if (BuildMode != nullptr && BuildMode->IsDemolishing())
+	{
+		BuildModeText->SetText(BuildDemolishText(*BuildMode));
+		BuildModeText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.35f, 0.3f)));
+		BuildModeText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
 	else
 	{
 		BuildModeText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 
-	// 채취 진행도
+	// 가운데 진행 막대: 채취 또는 철거 길게 누르기
 	const AJ3Character* Character = Cast<AJ3Character>(GetOwningPlayerPawn());
-	const float HarvestProgress = Character != nullptr ? Character->GetHarvest()->GetProgress() : -1.f;
+	const float DemolishProgress = BuildMode != nullptr ? BuildMode->GetDemolishProgress() : -1.f;
+	const float HarvestProgress = Character != nullptr ? FMath::Max(Character->GetHarvest()->GetProgress(), DemolishProgress) : DemolishProgress;
 	HarvestBar->SetVisibility(HarvestProgress >= 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	HarvestBar->SetPercent(FMath::Max(0.f, HarvestProgress));
 
@@ -204,6 +212,30 @@ void UJ3HUDWidget::SetStat(const FStatRow& Row, float Current, float Max)
 	// "현재/최대" (소수점은 버려 바가 떨리지 않게)
 	Row.Bar->SetPercent(Max > 0.f ? Current / Max : 0.f);
 	Row.Value->SetText(FText::Format(LOCTEXT("StatValue", "{0}/{1}"), FText::AsNumber(FMath::FloorToInt(Current)), FText::AsNumber(FMath::RoundToInt(Max))));
+}
+
+FText UJ3HUDWidget::BuildDemolishText(const UJ3BuildModeComponent& BuildMode) const
+{
+	// 대상이 없으면 조작 안내만
+	const FText Controls = LOCTEXT("DemolishControls", "좌클릭 길게: 철거   F·우클릭·Esc: 끝내기");
+	const AJ3BuildingBase* Target = BuildMode.GetDemolishTarget();
+	const FJ3BuildingDef* Def = Target != nullptr ? Target->GetDef() : nullptr;
+	if (Def == nullptr)
+	{
+		return FText::Format(LOCTEXT("DemolishNoTarget", "철거 모드\n건물을 조준하세요\n{0}"), Controls);
+	}
+
+
+	// 환급 미리보기 (100%). TODO(단계 5): 창고·생산 건물 안의 아이템도 함께 표시
+	TArray<FText> Parts;
+	for (const FJ3ItemAmount& Input : Def->BuildInputs)
+	{
+		const FJ3ItemDef* Item = UJ3DataSubsystem::Get()->GetItem(Input.ItemId);
+		Parts.Add(FText::Format(LOCTEXT("RefundItem", "{0} ×{1}"), Item != nullptr ? Item->DisplayName : FText::FromName(Input.ItemId), Input.Count));
+	}
+	const FText Refund = Parts.Num() > 0 ? FText::Join(FText::FromString(TEXT(", ")), Parts) : LOCTEXT("RefundNone", "없음");
+	const FText RangeText = BuildMode.IsDemolishTargetInRange() ? FText::GetEmpty() : LOCTEXT("DemolishTooFar", "   (너무 멉니다)");
+	return FText::Format(LOCTEXT("DemolishTarget", "철거: {0}{1}\n환급: {2}\n{3}"), Def->DisplayName, RangeText, Refund, Controls);
 }
 
 #undef LOCTEXT_NAMESPACE

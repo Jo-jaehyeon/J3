@@ -42,7 +42,7 @@ public:
 	UFUNCTION(Exec)
 	void J3Build(FName BuildingId, float YawDeg = 0.f);
 
-	// 개발용 치트 (콘솔: J3Demolish) 조준한 건물을 철거한다. TODO(단계 4 철거 모드): F키로 대체
+	// 개발용 치트 (콘솔: J3Demolish) 조준한 건물을 바로 철거한다 (평소에는 F 철거 모드)
 	UFUNCTION(Exec)
 	void J3Demolish();
 
@@ -82,6 +82,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputAction> PickBuildingAction;
 
+	// F: 철거 모드
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> DemolishModeAction;
+
 	// 보조 그리드 켜기/끄기 (건설 모드)
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputAction> ToggleGridAction;
@@ -120,6 +124,8 @@ private:
 	TObjectPtr<UJ3BuildMenuWidget> BuildMenuWidget;
 
 	void OnConfirm();
+	void OnConfirmReleased();
+	void OnDemolishMode();
 	void OnCancel();
 	void OnPickBuilding();
 	void OnToggleGrid();

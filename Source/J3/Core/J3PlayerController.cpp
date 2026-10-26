@@ -42,6 +42,7 @@ void AJ3PlayerController::SetupInputComponent()
 	if (ConfirmAction != nullptr)
 	{
 		EnhancedInput->BindAction(ConfirmAction, ETriggerEvent::Started, this, &AJ3PlayerController::OnConfirm);
+		EnhancedInput->BindAction(ConfirmAction, ETriggerEvent::Completed, this, &AJ3PlayerController::OnConfirmReleased);
 	}
 	if (CancelAction != nullptr)
 	{
@@ -50,6 +51,10 @@ void AJ3PlayerController::SetupInputComponent()
 	if (PickBuildingAction != nullptr)
 	{
 		EnhancedInput->BindAction(PickBuildingAction, ETriggerEvent::Started, this, &AJ3PlayerController::OnPickBuilding);
+	}
+	if (DemolishModeAction != nullptr)
+	{
+		EnhancedInput->BindAction(DemolishModeAction, ETriggerEvent::Started, this, &AJ3PlayerController::OnDemolishMode);
 	}
 	if (ToggleGridAction != nullptr)
 	{
@@ -64,14 +69,26 @@ void AJ3PlayerController::SetupInputComponent()
 
 void AJ3PlayerController::OnConfirm()
 {
-	// 화면이 열려 있지 않을 때 좌클릭 = 설치 확정 (건설 모드에서만)
-	BuildMode->Confirm();
+	// 화면이 열려 있지 않을 때 좌클릭 = 설치 확정, 철거 모드면 누르고 있는 동안 철거 진행
+	BuildMode->PressPrimary();
+}
+
+
+void AJ3PlayerController::OnConfirmReleased()
+{
+	BuildMode->ReleasePrimary();
+}
+
+
+void AJ3PlayerController::OnDemolishMode()
+{
+	BuildMode->ToggleDemolish();
 }
 
 
 void AJ3PlayerController::OnCancel()
 {
-	BuildMode->EndPlacing();
+	BuildMode->EndAll();
 }
 
 
@@ -84,7 +101,6 @@ void AJ3PlayerController::OnPickBuilding()
 void AJ3PlayerController::OnToggleGrid()
 {
 	BuildMode->ToggleGrid();
-	UE_LOG(LogTemp, Display, TEXT("보조 그리드: %s"), BuildMode->IsGridEnabled() ? TEXT("켜짐") : TEXT("꺼짐"));
 }
 
 

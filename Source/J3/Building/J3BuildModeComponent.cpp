@@ -51,6 +51,10 @@ void UJ3BuildModeComponent::BeginPlacing(FName BuildingId)
 	}
 
 
+	// 철거 모드와는 동시에 쓰지 않는다
+	EndDemolish();
+
+
 	// 미리보기 모형 (이 PC에서만)
 	if (Preview == nullptr)
 	{
@@ -132,6 +136,128 @@ void UJ3BuildModeComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 	if (IsPlacing())
 	{
 		UpdatePreview();
+	}
+	if (IsDemolishing())
+	{
+		UpdateDemolish(DeltaTime);
+	}
+}
+
+
+void UJ3BuildModeComponent::ToggleDemolish()
+{
+	if (bDemolishing)
+	{
+		EndDemolish();
+		return;
+	}
+
+
+	// 설치 중이었으면 끝내고 철거 모드로
+	EndPlacing();
+	if (DemolishHighlight == nullptr)
+	{
+		FActorSpawnParameters Params;
+		Params.ObjectFlags |= RF_Transient;
+		DemolishHighlight = GetWorld()->SpawnActor<AJ3BuildPreview>(AJ3BuildPreview::StaticClass(), Params);
+		DemolishHighlight->SetActorHiddenInGame(true);
+	}
+	bDemolishing = true;
+	bPrimaryHeld = false;
+	DemolishHoldSec = 0.f;
+}
+
+
+void UJ3BuildModeComponent::EndDemolish()
+{
+	bDemolishing = false;
+	bPrimaryHeld = false;
+	DemolishHoldSec = 0.f;
+	DemolishTarget = nullptr;
+	if (DemolishHighlight != nullptr)
+	{
+		DemolishHighlight->SetActorHiddenInGame(true);
+	}
+}
+
+
+void UJ3BuildModeComponent::PressPrimary()
+{
+	if (IsDemolishing())
+	{
+		bPrimaryHeld = true;
+		DemolishHoldSec = 0.f;
+		return;
+	}
+	Confirm();
+}
+
+
+void UJ3BuildModeComponent::ReleasePrimary()
+{
+	bPrimaryHeld = false;
+	DemolishHoldSec = 0.f;
+}
+
+
+float UJ3BuildModeComponent::GetDemolishProgress() const
+{
+	const float HoldNeededSec = UJ3DataSubsystem::Get()->GetConfigFloat("demolish_hold_sec", 0.5f);
+	if (!IsDemolishing() || !bPrimaryHeld || DemolishTarget == nullptr || !bDemolishTargetInRange)
+	{
+		return -1.f;
+	}
+	return HoldNeededSec > 0.f ? FMath::Clamp(DemolishHoldSec / HoldNeededSec, 0.f, 1.f) : 1.f;
+}
+
+
+void UJ3BuildModeComponent::UpdateDemolish(float DeltaTime)
+{
+	// 조준한 건물 (요청을 보내 사라지는 중인 건물은 빼고)
+	FHitResult Hit;
+	AJ3BuildingBase* Aimed = TraceAim(Hit) ? Cast<AJ3BuildingBase>(Hit.GetActor()) : nullptr;
+	if (Aimed != nullptr && Aimed == RequestedTarget.Get())
+	{
+		Aimed = nullptr;
+	}
+	if (Aimed != DemolishTarget.Get())
+	{
+		// 대상이 바뀌면 처음부터 다시 누른다
+		DemolishTarget = Aimed;
+		DemolishHoldSec = 0.f;
+		if (Aimed != nullptr)
+		{
+			DemolishHighlight->SetBuildingClass(Aimed->GetClass());
+			DemolishHighlight->SetValid(false);
+		}
+	}
+
+
+	// 대상 표시. 거리는 서버와 같은 함수로 본다
+	const AJ3PlayerState* PlayerState = Cast<APlayerController>(GetOwner())->GetPlayerState<AJ3PlayerState>();
+	bDemolishTargetInRange = Aimed != nullptr && PlayerState != nullptr && PlayerState->GetBuilder()->CanDemolish(Aimed);
+	DemolishHighlight->SetActorHiddenInGame(Aimed == nullptr);
+	if (Aimed == nullptr)
+	{
+		return;
+	}
+	const float HighlightScale = UJ3DataSubsystem::Get()->GetConfigFloat("demolish_highlight_scale", 1.02f);
+	DemolishHighlight->SetActorTransform(FTransform(Aimed->GetActorRotation(), Aimed->GetActorLocation(), FVector(HighlightScale)));
+
+
+	// 길게 누르면 요청 (서버가 거리를 다시 확인하고 환급한다)
+	if (!bPrimaryHeld || !bDemolishTargetInRange)
+	{
+		DemolishHoldSec = 0.f;
+		return;
+	}
+	DemolishHoldSec += DeltaTime;
+	if (DemolishHoldSec >= UJ3DataSubsystem::Get()->GetConfigFloat("demolish_hold_sec", 0.5f))
+	{
+		PlayerState->GetBuilder()->Server_Demolish(Aimed);
+		RequestedTarget = Aimed;
+		DemolishTarget = nullptr;
+		DemolishHoldSec = 0.f;
 	}
 }
 
