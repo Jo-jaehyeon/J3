@@ -9,6 +9,7 @@
 #include "InputMappingContext.h"
 #include "Inventory/J3InventoryComponent.h"
 #include "Player/J3Character.h"
+#include "UI/J3CraftingWidget.h"
 #include "UI/J3HUDWidget.h"
 #include "UI/J3InventoryWidget.h"
 
@@ -47,10 +48,52 @@ void AJ3PlayerController::ToggleInventoryScreen()
 	}
 
 
-	// 닫기: 게임 입력으로 돌아간다
+	// 열려 있으면 닫고, 닫혀 있으면 연다
 	if (InventoryWidget->IsInViewport())
 	{
 		InventoryWidget->RemoveFromParent();
+		RefreshUIInputMode(nullptr);
+		return;
+	}
+	InventoryWidget->AddToViewport(1);
+	RefreshUIInputMode(InventoryWidget);
+}
+
+
+void AJ3PlayerController::Client_OpenCraftingScreen_Implementation(AActor* Station)
+{
+	// 처음 열 때 만든다
+	if (CraftingWidget == nullptr)
+	{
+		const TSubclassOf<UJ3CraftingWidget> CraftingClass = CraftingWidgetClass != nullptr ? CraftingWidgetClass : TSubclassOf<UJ3CraftingWidget>(UJ3CraftingWidget::StaticClass());
+		CraftingWidget = CreateWidget<UJ3CraftingWidget>(this, CraftingClass);
+	}
+	CraftingWidget->SetStation(Station);
+	if (!CraftingWidget->IsInViewport())
+	{
+		CraftingWidget->AddToViewport(1);
+	}
+	RefreshUIInputMode(CraftingWidget);
+}
+
+
+void AJ3PlayerController::CloseCraftingScreen()
+{
+	if (CraftingWidget != nullptr && CraftingWidget->IsInViewport())
+	{
+		CraftingWidget->RemoveFromParent();
+		RefreshUIInputMode(nullptr);
+	}
+}
+
+
+void AJ3PlayerController::RefreshUIInputMode(UUserWidget* FocusWidget)
+{
+	// 모두 닫혔으면 게임 입력으로 돌아간다
+	const bool bInventoryOpen = InventoryWidget != nullptr && InventoryWidget->IsInViewport();
+	const bool bCraftingOpen = CraftingWidget != nullptr && CraftingWidget->IsInViewport();
+	if (!bInventoryOpen && !bCraftingOpen)
+	{
 		SetInputMode(FInputModeGameOnly());
 		SetShowMouseCursor(false);
 		ResetIgnoreLookInput();
@@ -58,15 +101,17 @@ void AJ3PlayerController::ToggleInventoryScreen()
 	}
 
 
-	// 열기: 커서로 칸을 다루고, 키 입력(I, 이동)은 게임에도 계속 들어간다
-	// 인벤토리를 연 채로 이동할 수 있다 (확정)
-	InventoryWidget->AddToViewport(1);
+	// 열려 있으면 커서로 다루고, 키 입력(I, 이동)은 게임에도 계속 들어간다 (인벤토리를 연 채 이동 가능, 확정)
 	FInputModeGameAndUI InputMode;
-	InputMode.SetWidgetToFocus(InventoryWidget->TakeWidget());
+	UUserWidget* Focus = FocusWidget != nullptr ? FocusWidget : (bCraftingOpen ? static_cast<UUserWidget*>(CraftingWidget) : static_cast<UUserWidget*>(InventoryWidget));
+	InputMode.SetWidgetToFocus(Focus->TakeWidget());
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
 	SetShowMouseCursor(true);
-	SetIgnoreLookInput(true);
+	if (!IsLookInputIgnored())
+	{
+		SetIgnoreLookInput(true);
+	}
 }
 
 

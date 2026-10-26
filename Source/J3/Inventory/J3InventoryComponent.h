@@ -29,6 +29,9 @@ public:
 	// 못 넣은 개수를 돌려준다
 	int32 AddItem(FName ItemId, int32 Count);
 	bool RemoveItem(FName ItemId, int32 Count);
+
+	// 제작: 재료를 빼고 결과물을 넣는다 (모자라거나 자리가 없으면 아무것도 바꾸지 않는다)
+	bool TryExchange(const TArray<struct FJ3ItemAmount>& Inputs, const struct FJ3ItemAmount& Output);
 	bool EquipFromSlot(int32 SlotIndex);
 	bool UnequipToInventory(int32 EquipIndex);
 	bool SwapEquipment(int32 EquipIndexA, int32 EquipIndexB);
@@ -93,6 +96,9 @@ protected:
 private:
 	// 장비를 바꿀 수 있는 상태인지 (채취 중에는 불가)
 	bool CanChangeEquipment() const;
+
+	// 팀 해방 판정: 처음 얻은 아이템 기록
+	void RecordObtained(FName ItemId) const;
 
 	// 변경 뒤 공통 처리: 손에 든 장비 다시 계산, 알림
 	void NotifyChanged();

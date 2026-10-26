@@ -7,6 +7,7 @@
 #include "J3PlayerController.generated.h"
 
 class UInputMappingContext;
+class UJ3CraftingWidget;
 class UJ3HUDWidget;
 class UJ3InventoryWidget;
 
@@ -24,6 +25,12 @@ public:
 
 	// I키: 인벤토리 화면 열기/닫기. 열려 있는 동안 마우스 커서가 나오고 시점 회전은 멈춘다.
 	void ToggleInventoryScreen();
+
+	// 제작 장소에 말을 걸면 서버가 이 PC에 화면을 열라고 알린다
+	UFUNCTION(Client, Reliable)
+	void Client_OpenCraftingScreen(AActor* Station);
+
+	void CloseCraftingScreen();
 
 protected:
 	UFUNCTION(Server, Reliable)
@@ -45,12 +52,21 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
 	TSubclassOf<UJ3InventoryWidget> InventoryWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
+	TSubclassOf<UJ3CraftingWidget> CraftingWidgetClass;
+
 private:
 	UPROPERTY()
 	TObjectPtr<UJ3HUDWidget> HUDWidget;
 
 	UPROPERTY()
 	TObjectPtr<UJ3InventoryWidget> InventoryWidget;
+
+	UPROPERTY()
+	TObjectPtr<UJ3CraftingWidget> CraftingWidget;
+
+	// 화면(인벤토리·제작)이 하나라도 열려 있으면 커서를 보이고 시점 회전을 멈춘다
+	void RefreshUIInputMode(UUserWidget* FocusWidget);
 
 	// 채취를 시작한 순간의 시점 방향
 	bool bWasHarvesting = false;

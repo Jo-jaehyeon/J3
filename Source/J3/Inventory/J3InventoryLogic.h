@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Data/J3DataTypes.h"
 #include "Inventory/J3InventoryTypes.h"
 
 
@@ -24,6 +25,12 @@ namespace J3InventoryLogic
 
 	// 드래그 이동: 같은 아이템이면 스택 한도까지 합치고, 아니면 자리를 바꾼다
 	J3_API bool Move(TArray<FJ3ItemStack>& Slots, int32 From, int32 To, FStackSizeFn StackSize);
+
+	// 제작: 재료를 모두 빼고 결과물을 넣는다. 재료가 모자라거나 결과물이 들어갈 자리가 없으면 아무것도 바꾸지 않는다.
+	J3_API bool TryExchange(TArray<FJ3ItemStack>& Slots, const TArray<FJ3ItemAmount>& Inputs, const FJ3ItemAmount& Output, FStackSizeFn StackSize);
+
+	// 재료가 모두 있는지
+	J3_API bool HasAll(const TArray<FJ3ItemStack>& Slots, const TArray<FJ3ItemAmount>& Inputs);
 
 	// 마우스 휠 순환: 맨손 → 1 → 2 → 3 → 4 → 맨손. 빈 장비 칸은 건너뛴다.
 	// Direction은 +1(다음) 또는 -1(이전).

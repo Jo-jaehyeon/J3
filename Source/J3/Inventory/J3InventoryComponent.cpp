@@ -5,7 +5,9 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "Abilities/J3GameplayTags.h"
+#include "Core/J3GameState.h"
 #include "Data/J3DataSubsystem.h"
+#include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/J3InventoryLogic.h"
 #include "Net/UnrealNetwork.h"
@@ -101,11 +103,36 @@ int32 UJ3InventoryComponent::AddItem(FName ItemId, int32 Count)
 		return Count;
 	}
 	const int32 Leftover = J3InventoryLogic::Add(Slots, ItemId, Count, J3InventoryComponentPrivate::StackSizeOf);
-	if (Leftover != Count)
+	if (Leftover == Count)
 	{
-		NotifyChanged();
+		return Leftover;
 	}
+	NotifyChanged();
+	RecordObtained(ItemId);
 	return Leftover;
+}
+
+
+bool UJ3InventoryComponent::TryExchange(const TArray<FJ3ItemAmount>& Inputs, const FJ3ItemAmount& Output)
+{
+	check(GetOwner()->HasAuthority());
+
+	if (!J3InventoryLogic::TryExchange(Slots, Inputs, Output, J3InventoryComponentPrivate::StackSizeOf))
+	{
+		return false;
+	}
+	NotifyChanged();
+	RecordObtained(Output.ItemId);
+	return true;
+}
+
+
+void UJ3InventoryComponent::RecordObtained(FName ItemId) const
+{
+	if (AJ3GameState* GameState = GetWorld()->GetGameState<AJ3GameState>())
+	{
+		GameState->NotifyItemObtained(ItemId);
+	}
 }
 
 

@@ -8,6 +8,7 @@
 #include "J3PlayerState.generated.h"
 
 class UAbilitySystemComponent;
+class UJ3CraftingComponent;
 class UJ3EquipmentAbilityComponent;
 class UJ3InventoryComponent;
 class UJ3SurvivalAttributeSet;
@@ -35,6 +36,11 @@ public:
 		return Inventory;
 	}
 
+	UJ3CraftingComponent* GetCrafting() const
+	{
+		return Crafting;
+	}
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -52,4 +58,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "J3|Abilities")
 	TObjectPtr<UJ3EquipmentAbilityComponent> EquipmentAbilities;
+
+	UPROPERTY(VisibleAnywhere, Category = "J3|Crafting")
+	TObjectPtr<UJ3CraftingComponent> Crafting;
 };

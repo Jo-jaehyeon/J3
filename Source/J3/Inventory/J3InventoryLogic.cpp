@@ -137,6 +137,46 @@ namespace J3InventoryLogic
 	}
 
 
+	bool HasAll(const TArray<FJ3ItemStack>& Slots, const TArray<FJ3ItemAmount>& Inputs)
+	{
+		// 같은 재료가 두 줄로 적혀 있을 수 있으니 합쳐서 센다
+		TMap<FName, int32> Needed;
+		for (const FJ3ItemAmount& Input : Inputs)
+		{
+			Needed.FindOrAdd(Input.ItemId) += Input.Count;
+		}
+		for (const TPair<FName, int32>& Pair : Needed)
+		{
+			if (CountOf(Slots, Pair.Key) < Pair.Value)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+
+	bool TryExchange(TArray<FJ3ItemStack>& Slots, const TArray<FJ3ItemAmount>& Inputs, const FJ3ItemAmount& Output, FStackSizeFn StackSize)
+	{
+		// 사본에서 해 보고 성공했을 때만 반영한다 (재료를 뺀 자리에 결과물이 들어갈 수도 있다)
+		if (!HasAll(Slots, Inputs))
+		{
+			return false;
+		}
+		TArray<FJ3ItemStack> Working = Slots;
+		for (const FJ3ItemAmount& Input : Inputs)
+		{
+			Remove(Working, Input.ItemId, Input.Count);
+		}
+		if (Add(Working, Output.ItemId, Output.Count, StackSize) > 0)
+		{
+			return false;
+		}
+		Slots = MoveTemp(Working);
+		return true;
+	}
+
+
 	int32 NextActiveIndex(const TArray<FJ3ItemStack>& Equipment, int32 CurrentIndex, int32 Direction)
 	{
 		// 순환 순서: 맨손(-1), 0, 1, ..., N-1. 맨손은 항상 고를 수 있다.
