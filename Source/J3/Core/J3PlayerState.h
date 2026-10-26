@@ -8,6 +8,7 @@
 #include "J3PlayerState.generated.h"
 
 class UAbilitySystemComponent;
+class UJ3InventoryComponent;
 class UJ3SurvivalAttributeSet;
 class UJ3SurvivalComponent;
 
@@ -28,6 +29,11 @@ public:
 		return SurvivalAttributes;
 	}
 
+	UJ3InventoryComponent* GetInventory() const
+	{
+		return Inventory;
+	}
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -39,4 +45,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "J3|Survival")
 	TObjectPtr<UJ3SurvivalComponent> Survival;
+
+	UPROPERTY(VisibleAnywhere, Category = "J3|Inventory")
+	TObjectPtr<UJ3InventoryComponent> Inventory;
 };

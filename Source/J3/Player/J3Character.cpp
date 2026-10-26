@@ -11,6 +11,7 @@
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputActionValue.h"
+#include "Inventory/J3InventoryComponent.h"
 
 
 AJ3Character::AJ3Character()
@@ -64,6 +65,21 @@ void AJ3Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
 		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 	}
+	if (CycleEquipmentAction != nullptr)
+	{
+		EnhancedInput->BindAction(CycleEquipmentAction, ETriggerEvent::Triggered, this, &AJ3Character::CycleEquipment);
+	}
+	if (InventoryAction != nullptr)
+	{
+		EnhancedInput->BindAction(InventoryAction, ETriggerEvent::Started, this, &AJ3Character::ToggleInventory);
+	}
+}
+
+
+UJ3InventoryComponent* AJ3Character::GetInventory() const
+{
+	const AJ3PlayerState* J3PlayerState = GetPlayerState<AJ3PlayerState>();
+	return J3PlayerState != nullptr ? J3PlayerState->GetInventory() : nullptr;
 }
 
 
@@ -137,4 +153,27 @@ void AJ3Character::Look(const FInputActionValue& Value)
 	const FVector2D Axis = Value.Get<FVector2D>();
 	AddControllerYawInput(Axis.X);
 	AddControllerPitchInput(Axis.Y);
+}
+
+
+void AJ3Character::CycleEquipment(const FInputActionValue& Value)
+{
+	// 휠 한 칸 = 한 칸 이동. 바뀐 결과(손에 든 장비)는 서버가 정하고 복제한다.
+	const float Axis = Value.Get<float>();
+	UJ3InventoryComponent* Inventory = GetInventory();
+	if (Inventory == nullptr || FMath::IsNearlyZero(Axis))
+	{
+		return;
+	}
+	Inventory->Server_CycleHeldEquipment(Axis > 0.f ? -1 : 1);
+}
+
+
+void AJ3Character::ToggleInventory()
+{
+	// TODO(단계 1 UI): 인벤토리 화면(UMG)을 연다. 지금은 화면에 내용만 띄운다.
+	if (UJ3InventoryComponent* Inventory = GetInventory())
+	{
+		Inventory->ToggleDebugView();
+	}
 }

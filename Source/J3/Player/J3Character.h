@@ -39,11 +39,15 @@ public:
 	}
 
 protected:
+	class UJ3InventoryComponent* GetInventory() const;
+
 	void InitAbilityActorInfo();
 	void OnDeadTagChanged(const FGameplayTag Tag, int32 NewCount);
 
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
+	void CycleEquipment(const FInputActionValue& Value);
+	void ToggleInventory();
 
 
 	// 시점
@@ -69,6 +73,14 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputAction> JumpAction;
+
+	// 마우스 휠: 장비 4칸 순환 (건설 모드에서는 회전, 단계 4)
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> CycleEquipmentAction;
+
+	// I: 인벤토리 열기
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> InventoryAction;
 
 private:
 	// OnRep_PlayerState가 여러 번 와도 태그 이벤트를 한 번만 등록하기 위해

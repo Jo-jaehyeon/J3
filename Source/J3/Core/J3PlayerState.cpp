@@ -4,6 +4,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "Abilities/J3SurvivalAttributeSet.h"
+#include "Inventory/J3InventoryComponent.h"
 #include "Player/J3SurvivalComponent.h"
 
 
@@ -17,6 +18,7 @@ AJ3PlayerState::AJ3PlayerState()
 
 
 	Survival = CreateDefaultSubobject<UJ3SurvivalComponent>(TEXT("Survival"));
+	Inventory = CreateDefaultSubobject<UJ3InventoryComponent>(TEXT("Inventory"));
 
 
 	// PlayerState 기본 복제 빈도는 낮아서 HP 변화가 늦게 보이므로 올린다
