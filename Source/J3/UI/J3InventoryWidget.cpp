@@ -160,7 +160,7 @@ void UJ3InventoryWidget::Refresh()
 
 void UJ3InventoryWidget::HandleSlotClicked(EJ3SlotKind Kind, int32 Index)
 {
-	// 가방의 장비 클릭 → 위에서부터 장착 (확정). 장비 칸 클릭 → 가방으로 빼기 (TODO(기획-제안))
+	// 가방의 장비 클릭 → 위에서부터 장착, 장비 칸 클릭 → 가방으로 빼기 (확정)
 	UJ3InventoryComponent* Inventory = GetInventory();
 	if (Inventory == nullptr)
 	{
@@ -187,7 +187,7 @@ void UJ3InventoryWidget::HandleSlotDropped(EJ3SlotKind FromKind, int32 FromIndex
 
 
 	// 가방 → 가방: 옮기기·합치기 / 가방 → 장비: 위에서부터 장착 (확정: 드래그도 순서대로 장착)
-	// 장비 → 장비: 순서 바꾸기 (확정) / 장비 → 가방: 빼기 (TODO(기획-제안))
+	// 장비 → 장비: 순서 바꾸기 / 장비 → 가방: 빼기 (확정)
 	if (FromKind == EJ3SlotKind::Inventory && ToKind == EJ3SlotKind::Inventory)
 	{
 		Inventory->Server_MoveSlot(FromIndex, ToIndex);

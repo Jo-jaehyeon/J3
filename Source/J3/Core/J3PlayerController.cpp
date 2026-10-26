@@ -57,7 +57,7 @@ void AJ3PlayerController::ToggleInventoryScreen()
 
 
 	// 열기: 커서로 칸을 다루고, 키 입력(I, 이동)은 게임에도 계속 들어간다
-	// TODO(기획-제안): 인벤토리를 연 채 이동 가능 여부
+	// 인벤토리를 연 채로 이동할 수 있다 (확정)
 	InventoryWidget->AddToViewport(1);
 	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(InventoryWidget->TakeWidget());

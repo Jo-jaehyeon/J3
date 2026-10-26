@@ -103,7 +103,7 @@ void UJ3WeaponAbility::FireHitscan(const FGameplayAbilityActorInfo* ActorInfo, c
 void UJ3WeaponAbility::ApplyDamage(const FGameplayAbilityActorInfo* ActorInfo, AActor* Target, float Damage) const
 {
 	// GAS가 있는 대상만 피해를 받는다 (몬스터·보스, 단계 7)
-	// TODO(기획-미결정): 팀원 공격(아군 피해) 허용 여부. 지금은 플레이어에게 피해를 주지 않는다.
+	// 팀원 공격(아군 피해)은 없다 (확정): 플레이어에게는 피해를 주지 않는다.
 	UAbilitySystemComponent* TargetAbilitySystem = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
 	if (TargetAbilitySystem == nullptr || Damage <= 0.f || Cast<AJ3Character>(Target) != nullptr)
 	{
