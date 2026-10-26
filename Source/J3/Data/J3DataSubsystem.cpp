@@ -150,6 +150,18 @@ const FJ3ResourceNodeDef* UJ3DataSubsystem::GetResourceNode(FName NodeId) const
 }
 
 
+const FJ3MachineDef* UJ3DataSubsystem::GetMachine(FName BuildingId) const
+{
+	return Data.Machines.Find(BuildingId);
+}
+
+
+const FJ3FuelDef* UJ3DataSubsystem::GetFuel(FName ItemId) const
+{
+	return Data.Fuels.Find(ItemId);
+}
+
+
 TArray<FJ3ResourceSpawnDef> UJ3DataSubsystem::GetResourceSpawns(FName Zone) const
 {
 	TArray<FJ3ResourceSpawnDef> Result;

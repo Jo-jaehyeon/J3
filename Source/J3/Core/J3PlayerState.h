@@ -9,6 +9,7 @@
 
 class UAbilitySystemComponent;
 class UJ3BuilderComponent;
+class UJ3MachineAccessComponent;
 class UJ3CraftingComponent;
 class UJ3EquipmentAbilityComponent;
 class UJ3InventoryComponent;
@@ -47,6 +48,11 @@ public:
 		return Builder;
 	}
 
+	UJ3MachineAccessComponent* GetMachineAccess() const
+	{
+		return MachineAccess;
+	}
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -70,4 +76,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "J3|Building")
 	TObjectPtr<UJ3BuilderComponent> Builder;
+
+	UPROPERTY(VisibleAnywhere, Category = "J3|Building")
+	TObjectPtr<UJ3MachineAccessComponent> MachineAccess;
 };

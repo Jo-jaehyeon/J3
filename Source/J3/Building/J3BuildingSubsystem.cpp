@@ -228,7 +228,7 @@ bool UJ3BuildingSubsystem::TrySnapToNeighbor(FName BuildingId, const FVector& Ha
 }
 
 
-const AActor* UJ3BuildingSubsystem::FindAnchorNode(const TArray<FName>& AllowedNodes, const FVector& Location) const
+const AActor* UJ3BuildingSubsystem::FindAnchorNode(const TArray<FName>& AllowedNodes, const FVector& Location, const AActor* IgnoreBuilding) const
 {
 	// 조준점 둘레의 자원 노드 (노드는 공간 인덱스에 없어 충돌 검사로 찾는다)
 	const float RadiusCm = UJ3DataSubsystem::Get()->GetConfigFloat("build_node_snap_radius_cm", 200.f);
@@ -246,7 +246,9 @@ const AActor* UJ3BuildingSubsystem::FindAnchorNode(const TArray<FName>& AllowedN
 	{
 		const AJ3ResourceNode* Node = Cast<AJ3ResourceNode>(Overlap.GetActor());
 		const float Distance = Node != nullptr ? FVector::Dist2D(Node->GetActorLocation(), Location) : BestDistance;
-		const bool bOccupied = Node != nullptr && FindBuildingsInBox(FBox(Node->GetActorLocation() - FVector(RadiusCm * 0.5f), Node->GetActorLocation() + FVector(RadiusCm * 0.5f))).Num() > 0;
+		TArray<AJ3BuildingBase*> OnNode = Node != nullptr ? FindBuildingsInBox(FBox(Node->GetActorLocation() - FVector(RadiusCm * 0.5f), Node->GetActorLocation() + FVector(RadiusCm * 0.5f))) : TArray<AJ3BuildingBase*>();
+		OnNode.Remove(const_cast<AJ3BuildingBase*>(Cast<AJ3BuildingBase>(IgnoreBuilding)));
+		const bool bOccupied = OnNode.Num() > 0;
 		if (Node != nullptr && AllowedNodes.Contains(Node->GetNodeId()) && Distance < BestDistance && !bOccupied)
 		{
 			Best = Node;

@@ -2,6 +2,10 @@
 
 #include "Factory/J3FactorySimSubsystem.h"
 
+#include "Building/J3MachineBuildings.h"
+#include "Data/J3DataSubsystem.h"
+#include "Factory/J3MachineLogic.h"
+
 #include "Algo/BinarySearch.h"
 #include "Data/J3DataSubsystem.h"
 #include "Engine/World.h"
@@ -178,6 +182,84 @@ void UJ3FactorySimSubsystem::StepSimulation()
 	{
 		NotifySegmentsChanged(Changed);
 	}
+	if (GetWorld()->GetNetMode() != NM_Client)
+	{
+		StepMachines();
+	}
+}
+
+
+void UJ3FactorySimSubsystem::StepMachines()
+{
+	// 기계 상태는 서버만 계산한다 (클라이언트는 복제된 칸 내용과 주기 시작 시각만 본다)
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	for (FJ3MachineState& State : Machines)
+	{
+		const FJ3MachineDef* Def = Data->GetMachine(State.BuildingId);
+		if (Def == nullptr)
+		{
+			continue;
+		}
+		const FName BuildingId = State.BuildingId;
+		const bool bChanged = J3MachineLogic::Step(State, *Def, FixedStepSec,
+			[BuildingId](FName Item) { return FindMachineRecipe(BuildingId, Item); },
+			[Data](FName Item) { const FJ3FuelDef* Fuel = Data->GetFuel(Item); return Fuel != nullptr ? Fuel->BurnSec : 0.f; });
+		if (bChanged)
+		{
+			NotifyMachineChanged(State.Id);
+		}
+	}
+}
+
+
+int32 UJ3FactorySimSubsystem::AddMachine(const FJ3MachineState& InitialState, AJ3MachineBuilding* Owner)
+{
+	// 새 Id는 늘 가장 크므로 끝에 붙이면 순서가 유지된다
+	FJ3MachineState& State = Machines.Add_GetRef(InitialState);
+	State.Id = NextMachineId++;
+	MachineOwners.Add(State.Id, Owner);
+	NotifyMachineChanged(State.Id);
+	return State.Id;
+}
+
+
+void UJ3FactorySimSubsystem::RemoveMachine(int32 MachineId)
+{
+	Machines.RemoveAll([MachineId](const FJ3MachineState& State) { return State.Id == MachineId; });
+	MachineOwners.Remove(MachineId);
+}
+
+
+FJ3MachineState* UJ3FactorySimSubsystem::FindMachineMutable(int32 MachineId)
+{
+	return Machines.FindByPredicate([MachineId](const FJ3MachineState& State) { return State.Id == MachineId; });
+}
+
+
+void UJ3FactorySimSubsystem::NotifyMachineChanged(int32 MachineId)
+{
+	const FJ3MachineState* State = FindMachineMutable(MachineId);
+	const TWeakObjectPtr<AJ3MachineBuilding>* Owner = MachineOwners.Find(MachineId);
+	if (State != nullptr && Owner != nullptr && Owner->IsValid())
+	{
+		(*Owner)->ApplyMachineState(*State);
+	}
+}
+
+
+const FJ3RecipeDef* UJ3FactorySimSubsystem::FindMachineRecipe(FName BuildingId, FName InputItem)
+{
+	// 이 건물에서 만들고 이 재료를 쓰는 첫 레시피 (ID 순서와 상관없이 표에 적힌 것 중 하나, 지금은 재료당 하나뿐)
+	for (const TPair<FName, FJ3RecipeDef>& Pair : UJ3DataSubsystem::Get()->GetAllRecipes())
+	{
+		const FJ3RecipeDef& Recipe = Pair.Value;
+		const bool bUsesInput = Recipe.Inputs.ContainsByPredicate([InputItem](const FJ3ItemAmount& Amount) { return Amount.ItemId == InputItem; });
+		if (Recipe.Stations.Contains(BuildingId) && bUsesInput)
+		{
+			return &Recipe;
+		}
+	}
+	return nullptr;
 }
 
 

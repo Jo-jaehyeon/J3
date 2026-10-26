@@ -7,6 +7,8 @@
 #include "InputActionValue.h"
 #include "Building/J3BuildModeComponent.h"
 #include "Building/J3BuildVerify.h"
+#include "Building/J3MachineBuildings.h"
+#include "UI/J3MachineWidget.h"
 #include "Building/J3BuilderComponent.h"
 #include "Building/J3BuildingBase.h"
 #include "Core/J3PlayerState.h"
@@ -218,13 +220,41 @@ void AJ3PlayerController::CloseCraftingScreen()
 }
 
 
+void AJ3PlayerController::Client_OpenMachineScreen_Implementation(AJ3MachineBuilding* Machine)
+{
+	// 처음 열 때 만든다
+	if (MachineWidget == nullptr)
+	{
+		const TSubclassOf<UJ3MachineWidget> WidgetClass = MachineWidgetClass != nullptr ? MachineWidgetClass : TSubclassOf<UJ3MachineWidget>(UJ3MachineWidget::StaticClass());
+		MachineWidget = CreateWidget<UJ3MachineWidget>(this, WidgetClass);
+	}
+	MachineWidget->SetMachine(Machine);
+	if (!MachineWidget->IsInViewport())
+	{
+		MachineWidget->AddToViewport(1);
+	}
+	RefreshUIInputMode(MachineWidget);
+}
+
+
+void AJ3PlayerController::CloseMachineScreen()
+{
+	if (MachineWidget != nullptr && MachineWidget->IsInViewport())
+	{
+		MachineWidget->RemoveFromParent();
+		RefreshUIInputMode(nullptr);
+	}
+}
+
+
 void AJ3PlayerController::RefreshUIInputMode(UUserWidget* FocusWidget)
 {
 	// 모두 닫혔으면 게임 입력으로 돌아간다
 	const bool bInventoryOpen = InventoryWidget != nullptr && InventoryWidget->IsInViewport();
 	const bool bCraftingOpen = CraftingWidget != nullptr && CraftingWidget->IsInViewport();
 	const bool bBuildMenuOpen = BuildMenuWidget != nullptr && BuildMenuWidget->IsInViewport();
-	if (!bInventoryOpen && !bCraftingOpen && !bBuildMenuOpen)
+	const bool bMachineOpen = MachineWidget != nullptr && MachineWidget->IsInViewport();
+	if (!bInventoryOpen && !bCraftingOpen && !bBuildMenuOpen && !bMachineOpen)
 	{
 		SetInputMode(FInputModeGameOnly());
 		SetShowMouseCursor(false);
@@ -238,7 +268,7 @@ void AJ3PlayerController::RefreshUIInputMode(UUserWidget* FocusWidget)
 	UUserWidget* Focus = FocusWidget;
 	if (Focus == nullptr)
 	{
-		Focus = bBuildMenuOpen ? static_cast<UUserWidget*>(BuildMenuWidget) : (bCraftingOpen ? static_cast<UUserWidget*>(CraftingWidget) : static_cast<UUserWidget*>(InventoryWidget));
+		Focus = bBuildMenuOpen ? static_cast<UUserWidget*>(BuildMenuWidget) : (bCraftingOpen ? static_cast<UUserWidget*>(CraftingWidget) : (bMachineOpen ? static_cast<UUserWidget*>(MachineWidget) : static_cast<UUserWidget*>(InventoryWidget)));
 	}
 	InputMode.SetWidgetToFocus(Focus->TakeWidget());
 	InputMode.SetHideCursorDuringCapture(false);

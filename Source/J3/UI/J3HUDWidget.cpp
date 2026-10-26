@@ -226,12 +226,19 @@ FText UJ3HUDWidget::BuildDemolishText(const UJ3BuildModeComponent& BuildMode) co
 	}
 
 
-	// 환급 미리보기 (100%). TODO(단계 5): 창고·생산 건물 안의 아이템도 함께 표시
+	// 환급 미리보기 (100%) + 안에 든 아이템
 	TArray<FText> Parts;
 	for (const FJ3ItemAmount& Input : Def->BuildInputs)
 	{
 		const FJ3ItemDef* Item = UJ3DataSubsystem::Get()->GetItem(Input.ItemId);
 		Parts.Add(FText::Format(LOCTEXT("RefundItem", "{0} ×{1}"), Item != nullptr ? Item->DisplayName : FText::FromName(Input.ItemId), Input.Count));
+	}
+	TArray<FJ3ItemStack> Stored;
+	Target->GetStoredItems(Stored);
+	for (const FJ3ItemStack& Stack : Stored)
+	{
+		const FJ3ItemDef* Item = UJ3DataSubsystem::Get()->GetItem(Stack.ItemId);
+		Parts.Add(FText::Format(LOCTEXT("RefundItem", "{0} ×{1}"), Item != nullptr ? Item->DisplayName : FText::FromName(Stack.ItemId), Stack.Count));
 	}
 	const FText Refund = Parts.Num() > 0 ? FText::Join(FText::FromString(TEXT(", ")), Parts) : LOCTEXT("RefundNone", "없음");
 	const FText RangeText = BuildMode.IsDemolishTargetInRange() ? FText::GetEmpty() : LOCTEXT("DemolishTooFar", "   (너무 멉니다)");

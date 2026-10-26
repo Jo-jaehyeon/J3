@@ -5,9 +5,12 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Factory/J3BeltTypes.h"
+#include "Factory/J3MachineTypes.h"
 #include "J3FactorySimSubsystem.generated.h"
 
 class AJ3FactoryReplicator;
+class AJ3MachineBuilding;
+struct FJ3RecipeDef;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogJ3Factory, Log, All);
 
@@ -69,8 +72,21 @@ public:
 	// 아이템이 들어오거나 나간 구간 (복제용)
 	FJ3OnSegmentsChanged OnSegmentsChanged;
 
+
+	// 서버: 기계(채굴기·제련로) 등록. 상태는 여기서 들고, 바뀌면 건물 Actor의 표시용 복제 값을 고친다
+	int32 AddMachine(const FJ3MachineState& InitialState, AJ3MachineBuilding* Owner);
+	void RemoveMachine(int32 MachineId);
+	FJ3MachineState* FindMachineMutable(int32 MachineId);
+
+	// 플레이어가 넣고 꺼낸 뒤처럼 상태를 바꿨으면 부른다 (건물 표시 갱신)
+	void NotifyMachineChanged(int32 MachineId);
+
+	// 이 기계(건물 id)에서 이 재료로 만드는 레시피 (recipes.csv의 station)
+	static const FJ3RecipeDef* FindMachineRecipe(FName BuildingId, FName InputItem);
+
 private:
 	void StepSimulation();
+	void StepMachines();
 	void RebuildIndex();
 
 	// 서버: 변경된 구간을 해당 청크의 복제 액터에 알리고, 구간 배치가 바뀌면 청크를 다시 나눈다
@@ -80,6 +96,11 @@ private:
 
 	TArray<FJ3BeltSegment> Segments;
 	TMap<int32, int32> IndexById;
+
+	// 서버 전용: 기계 상태 (Id 오름차순, 처리 순서 고정)
+	TArray<FJ3MachineState> Machines;
+	TMap<int32, TWeakObjectPtr<AJ3MachineBuilding>> MachineOwners;
+	int32 NextMachineId = 1;
 
 	float FixedStepSec = 0.05f;
 	int32 MaxStepsPerFrame = 5;

@@ -54,6 +54,10 @@ public:
 	// 상자 안의 건물 (포트 스냅·철거 대상 찾기)
 	TArray<AJ3BuildingBase*> FindBuildingsInBox(const FBox& Box) const;
 
+	// 조준점 근처의 허용된 자원 노드 중 비어 있는 가장 가까운 것 (Building_Placement: 채굴기는 자원 위에만).
+	// IgnoreBuilding: 이미 그 자리에 선 채굴기 자신 (빈 노드인지 볼 때 뺀다)
+	const AActor* FindAnchorNode(const TArray<FName>& AllowedNodes, const FVector& Location, const AActor* IgnoreBuilding = nullptr) const;
+
 	// 건물 클래스의 크기 (원점 = 바닥 가운데 기준 반 크기)
 	FVector GetFootprintHalfExtent(TSubclassOf<AJ3BuildingBase> BuildingClass) const;
 
@@ -64,8 +68,6 @@ private:
 	// OutAnchor: 자원 위에만 짓는 건물이 올라간 자원 노드 (못 찾으면 null)
 	bool ResolveTransform(FName BuildingId, const FVector& HalfExtent, const FVector& Location, float YawDeg, bool bGrid, const AActor* Builder, const AActor* IgnoreActor, FTransform& OutTransform, FVector& OutGroundNormal, const AActor*& OutGroundActor, bool& bOutSupported, const AActor*& OutAnchor) const;
 
-	// 조준점 근처의 허용된 자원 노드 중 가장 가까운 것 (Building_Placement: 채굴기는 자원 위에만)
-	const AActor* FindAnchorNode(const TArray<FName>& AllowedNodes, const FVector& Location) const;
 
 	// 보조 그리드가 켜져 있을 때 같은 건물의 옆 칸(앞뒤좌우)에 붙인다 (Building_Placement 2.1 스냅)
 	bool TrySnapToNeighbor(FName BuildingId, const FVector& HalfExtent, const FVector& Location, float YawDeg, FTransform& OutTransform) const;

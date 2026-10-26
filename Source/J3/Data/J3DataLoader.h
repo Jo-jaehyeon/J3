@@ -22,6 +22,8 @@ private:
 	static void LoadResourceSpawns(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 	static void LoadResourceNodes(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 	static void LoadEquipment(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
+	static void LoadMachines(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
+	static void LoadFuels(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 	static void LoadConfig(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 
 	static FString ComputeHash(const TArray<FString>& RawContents);

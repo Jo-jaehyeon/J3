@@ -82,6 +82,20 @@ void FJ3DataValidator::CheckReferences(const FJ3GameData& Data, FJ3DataReport& R
 	}
 
 
+	// 기계 수치는 건물에, 연료는 아이템에 대응해야 한다
+	for (const TPair<FName, FJ3MachineDef>& Pair : Data.Machines)
+	{
+		if (!Data.Buildings.Contains(Pair.Key))
+		{
+			Report.AddError(TEXT("machines.csv"), LineOf(Data.MachineLines, Pair.Key), FString::Printf(TEXT("id: 없는 건물 '%s'"), *Pair.Key.ToString()));
+		}
+	}
+	for (const TPair<FName, FJ3FuelDef>& Pair : Data.Fuels)
+	{
+		CheckItem(Data, Report, TEXT("fuels.csv"), LineOf(Data.FuelLines, Pair.Key), TEXT("id"), Pair.Key);
+	}
+
+
 	// 건물의 건설 재료·해방 조건
 	for (const TPair<FName, FJ3BuildingDef>& Pair : Data.Buildings)
 	{

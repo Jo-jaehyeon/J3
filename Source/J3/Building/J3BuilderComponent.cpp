@@ -77,8 +77,7 @@ void UJ3BuilderComponent::Server_Demolish_Implementation(AJ3BuildingBase* Buildi
 	}
 
 
-	// 100% 환급. 가방이 차서 못 넣은 재료는 건물 자리에 떨군다.
-	// TODO(단계 5): 창고·생산 건물 안의 아이템도 돌려준다
+	// 100% 환급 + 안에 든 아이템. 가방이 차서 못 넣은 것은 건물 자리에 떨군다.
 	UJ3InventoryComponent* Inventory = Cast<AJ3PlayerState>(GetOwner())->GetInventory();
 	if (const FJ3BuildingDef* Def = Building->GetDef())
 	{
@@ -87,6 +86,13 @@ void UJ3BuilderComponent::Server_Demolish_Implementation(AJ3BuildingBase* Buildi
 			const int32 Leftover = Inventory->AddItem(Input.ItemId, Input.Count);
 			DropLeftover(Input.ItemId, Leftover, Building->GetActorLocation());
 		}
+	}
+	TArray<FJ3ItemStack> Stored;
+	Building->GetStoredItems(Stored);
+	for (const FJ3ItemStack& Stack : Stored)
+	{
+		const int32 Leftover = Inventory->AddItem(Stack.ItemId, Stack.Count);
+		DropLeftover(Stack.ItemId, Leftover, Building->GetActorLocation());
 	}
 	Building->Destroy();
 }

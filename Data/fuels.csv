@@ -1,0 +1,5 @@
+id,burn_sec,note
+branch,4,연소 시간 임시 (Resources_And_Tiers: 나뭇가지·식물 섬유도 연료)
+plant_fiber,2,임시
+log,15,임시
+coal,30,임시

@@ -251,6 +251,67 @@ struct FJ3ResourceNodeDef
 };
 
 
+// machines.csv 한 행: 생산 건물(채굴기·제련로)의 동작 수치. id는 buildings.csv의 id
+USTRUCT(BlueprintType)
+struct FJ3MachineDef
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName Id;
+
+	// miner(노드 자원을 캔다) / smelter(레시피로 가공한다)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName Kind;
+
+	// 한 번 채굴·가공하는 시간 (제련은 레시피 time_sec이 있으면 그것을 쓴다)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float CycleSec = 1.f;
+
+	// 칸별 최대 개수 (0이면 그 칸이 없다). 출력이 차면 멈춘다
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	int32 OutputCap = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	int32 InputCap = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	int32 FuelCap = 0;
+
+	// 0이면 전기가 필요 없다 (전력은 단계 5 전력 작업에서 쓴다)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float PowerUse = 0.f;
+
+	// 컨베이어로 넘겨줄 수 있는지 (간이 채굴기·간이 제련로는 불가)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	bool bConveyor = false;
+
+	bool IsMiner() const
+	{
+		return Kind == "miner";
+	}
+
+	bool IsSmelter() const
+	{
+		return Kind == "smelter";
+	}
+};
+
+
+// fuels.csv 한 행: 연료로 쓸 수 있는 아이템과 한 개가 타는 시간. id는 items.csv의 id
+USTRUCT(BlueprintType)
+struct FJ3FuelDef
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName Id;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float BurnSec = 1.f;
+};
+
+
 // 한 번 읽어 들인 전체 게임 데이터. 검증을 통과한 것만 서브시스템에 반영된다.
 struct FJ3GameData
 {
@@ -260,6 +321,8 @@ struct FJ3GameData
 	TMap<FName, FJ3EquipmentDef> Equipment;
 	TMap<FName, FJ3ResourceNodeDef> ResourceNodes;
 	TMap<FName, FJ3ResourceSpawnDef> ResourceSpawns;
+	TMap<FName, FJ3MachineDef> Machines;
+	TMap<FName, FJ3FuelDef> Fuels;
 	TMap<FName, float> Config;
 
 	// 컨베이어 위 아이템 종류 번호 (2바이트). 아이템 ID를 이름순으로 정렬해 1부터 매긴다.
@@ -274,6 +337,8 @@ struct FJ3GameData
 	TMap<FName, int32> EquipmentLines;
 	TMap<FName, int32> ResourceNodeLines;
 	TMap<FName, int32> ResourceSpawnLines;
+	TMap<FName, int32> MachineLines;
+	TMap<FName, int32> FuelLines;
 
 	// 서버·클라 데이터 일치 확인용 (원본 파일 내용 기준)
 	FString Hash;

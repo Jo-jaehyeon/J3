@@ -11,6 +11,8 @@ class UInputAction;
 class UJ3BuildMenuWidget;
 class UJ3BuildModeComponent;
 class UJ3CraftingWidget;
+class UJ3MachineWidget;
+class AJ3MachineBuilding;
 struct FInputActionValue;
 class UJ3HUDWidget;
 class UJ3InventoryWidget;
@@ -54,6 +56,12 @@ public:
 	void Client_OpenCraftingScreen(AActor* Station);
 
 	void CloseCraftingScreen();
+
+	// 기계 화면 (G키, 서버가 거리 확인 후 연다)
+	UFUNCTION(Client, Reliable)
+	void Client_OpenMachineScreen(AJ3MachineBuilding* Machine);
+
+	void CloseMachineScreen();
 
 protected:
 	UFUNCTION(Server, Reliable)
@@ -110,6 +118,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
 	TSubclassOf<UJ3BuildMenuWidget> BuildMenuWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
+	TSubclassOf<UJ3MachineWidget> MachineWidgetClass;
+
 private:
 	UPROPERTY()
 	TObjectPtr<UJ3HUDWidget> HUDWidget;
@@ -122,6 +133,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UJ3BuildMenuWidget> BuildMenuWidget;
+
+	UPROPERTY()
+	TObjectPtr<UJ3MachineWidget> MachineWidget;
 
 	void OnConfirm();
 	void OnConfirmReleased();

@@ -190,7 +190,7 @@ bool FJ3DataLoader::LoadAll(const FString& DataDir, FJ3GameData& OutData, FJ3Dat
 {
 	// 표 읽기. 표 하나가 실패해도 나머지 표의 오류까지 한 번에 보여 주려고 끝까지 읽는다.
 	TArray<FString> RawContents;
-	RawContents.SetNum(7);
+	RawContents.SetNum(9);
 	LoadItems(DataDir, OutData, Report, RawContents[0]);
 	LoadRecipes(DataDir, OutData, Report, RawContents[1]);
 	LoadBuildings(DataDir, OutData, Report, RawContents[2]);
@@ -198,6 +198,8 @@ bool FJ3DataLoader::LoadAll(const FString& DataDir, FJ3GameData& OutData, FJ3Dat
 	LoadEquipment(DataDir, OutData, Report, RawContents[4]);
 	LoadResourceNodes(DataDir, OutData, Report, RawContents[5]);
 	LoadResourceSpawns(DataDir, OutData, Report, RawContents[6]);
+	LoadMachines(DataDir, OutData, Report, RawContents[7]);
+	LoadFuels(DataDir, OutData, Report, RawContents[8]);
 
 
 	// 컨베이어용 아이템 종류 번호
@@ -388,6 +390,68 @@ void FJ3DataLoader::LoadResourceNodes(const FString& DataDir, FJ3GameData& OutDa
 			Reader.Error(TEXT("yield와 harvest_sec는 0보다 커야 합니다"));
 		}
 		AddUnique(OutData.ResourceNodes, &OutData.ResourceNodeLines, MoveTemp(Def), Reader);
+	}
+}
+
+
+void FJ3DataLoader::LoadMachines(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw)
+{
+	using namespace J3DataLoaderPrivate;
+
+	FJ3CsvTable Table;
+	if (!OpenTable(Table, DataDir, TEXT("machines.csv"), { "id", "kind", "cycle_sec", "output_cap", "input_cap", "fuel_cap", "power_use", "conveyor" }, Report, OutRaw))
+	{
+		return;
+	}
+
+
+	for (const FJ3CsvTable::FRow& Row : Table.GetRows())
+	{
+		FRowReader Reader{ Table, Row, Report };
+		FJ3MachineDef Def;
+		Def.Id = FName(*Reader.Required("id"));
+		Def.Kind = FName(*Reader.Required("kind"));
+		Def.CycleSec = Reader.OptionalFloat("cycle_sec", -1.f);
+		Def.OutputCap = Reader.OptionalInt("output_cap", 0);
+		Def.InputCap = Reader.OptionalInt("input_cap", 0);
+		Def.FuelCap = Reader.OptionalInt("fuel_cap", 0);
+		Def.PowerUse = Reader.OptionalFloat("power_use", 0.f);
+		Def.bConveyor = Reader.RequiredBool("conveyor");
+		if (!Def.IsMiner() && !Def.IsSmelter())
+		{
+			Reader.Error(TEXT("kind는 miner 또는 smelter"));
+		}
+		if (Def.CycleSec <= 0.f || Def.OutputCap <= 0)
+		{
+			Reader.Error(TEXT("cycle_sec와 output_cap은 0보다 커야 합니다"));
+		}
+		AddUnique(OutData.Machines, &OutData.MachineLines, MoveTemp(Def), Reader);
+	}
+}
+
+
+void FJ3DataLoader::LoadFuels(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw)
+{
+	using namespace J3DataLoaderPrivate;
+
+	FJ3CsvTable Table;
+	if (!OpenTable(Table, DataDir, TEXT("fuels.csv"), { "id", "burn_sec" }, Report, OutRaw))
+	{
+		return;
+	}
+
+
+	for (const FJ3CsvTable::FRow& Row : Table.GetRows())
+	{
+		FRowReader Reader{ Table, Row, Report };
+		FJ3FuelDef Def;
+		Def.Id = FName(*Reader.Required("id"));
+		Def.BurnSec = Reader.OptionalFloat("burn_sec", -1.f);
+		if (Def.BurnSec <= 0.f)
+		{
+			Reader.Error(TEXT("burn_sec는 0보다 커야 합니다"));
+		}
+		AddUnique(OutData.Fuels, &OutData.FuelLines, MoveTemp(Def), Reader);
 	}
 }
 

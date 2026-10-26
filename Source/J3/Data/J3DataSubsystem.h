@@ -38,6 +38,8 @@ public:
 	const FJ3BuildingDef* GetBuilding(FName BuildingId) const;
 	const FJ3EquipmentDef* GetEquipment(FName ItemId) const;
 	const FJ3ResourceNodeDef* GetResourceNode(FName NodeId) const;
+	const FJ3MachineDef* GetMachine(FName BuildingId) const;
+	const FJ3FuelDef* GetFuel(FName ItemId) const;
 
 	// 구역의 자원 배치 규칙 (노드 ID 순서로 정렬해 서버·세이브마다 같은 결과가 나오게 한다)
 	TArray<FJ3ResourceSpawnDef> GetResourceSpawns(FName Zone) const;

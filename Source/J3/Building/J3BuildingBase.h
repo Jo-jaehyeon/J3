@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Building/J3PortComponent.h"
+#include "Inventory/J3InventoryTypes.h"
 #include "J3BuildingBase.generated.h"
 
 class UStaticMeshComponent;
@@ -45,6 +46,11 @@ public:
 
 	// 건물 클래스에 정의된 포트 (원점 기준, 미리보기·설치 판정용). 블루프린트에서 붙인 포트도 포함한다.
 	static void GetClassPorts(TSubclassOf<AJ3BuildingBase> BuildingClass, TArray<FJ3PortInfo>& OutPorts);
+
+	// 안에 든 아이템 (기계 칸, 창고). 철거하면 건설 재료와 함께 돌려준다
+	virtual void GetStoredItems(TArray<FJ3ItemStack>& OutItems) const
+	{
+	}
 
 	// 윗면에 다른 건물을 올릴 수 있는지 (Building_Placement 1절: 충돌하지 않으면 건물 위 설치 가능)
 	virtual bool CanSupportBuildingsOnTop() const
