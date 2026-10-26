@@ -8,6 +8,7 @@
 #include "J3PlayerState.generated.h"
 
 class UAbilitySystemComponent;
+class UJ3BuilderComponent;
 class UJ3CraftingComponent;
 class UJ3EquipmentAbilityComponent;
 class UJ3InventoryComponent;
@@ -41,6 +42,11 @@ public:
 		return Crafting;
 	}
 
+	UJ3BuilderComponent* GetBuilder() const
+	{
+		return Builder;
+	}
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -61,4 +67,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "J3|Crafting")
 	TObjectPtr<UJ3CraftingComponent> Crafting;
+
+	UPROPERTY(VisibleAnywhere, Category = "J3|Building")
+	TObjectPtr<UJ3BuilderComponent> Builder;
 };

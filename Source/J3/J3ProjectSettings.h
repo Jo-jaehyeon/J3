@@ -7,6 +7,7 @@
 #include "J3ProjectSettings.generated.h"
 
 class AJ3BeltVisualizer;
+class AJ3PickupItem;
 
 
 // 프로젝트 설정 > J3: 코드가 직접 참조하는 블루프린트(겉모습) 클래스를 지정한다.
@@ -20,4 +21,8 @@ public:
 	// 컨베이어·아이템을 그리는 액터 (메시는 블루프린트에서 지정)
 	UPROPERTY(Config, EditAnywhere, Category = "Factory")
 	TSoftClassPtr<AJ3BeltVisualizer> BeltVisualizerClass;
+
+	// 바닥에 떨구는 아이템 (모양을 지정한 블루프린트)
+	UPROPERTY(Config, EditAnywhere, Category = "Items")
+	TSoftClassPtr<AJ3PickupItem> PickupItemClass;
 };

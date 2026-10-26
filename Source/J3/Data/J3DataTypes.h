@@ -117,6 +117,18 @@ struct FJ3BuildingDef
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	int32 Tier = 0;
 
+	// 건설 메뉴 탭 (production, logistics, power, structure, base, Inventory_And_UI 1.3)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName Category;
+
+	// 설치할 건물 클래스 (블루프린트 경로)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FSoftClassPath BuildingClass;
+
+	// 서버에 최대 몇 개까지 (0이면 제한 없음, 기지는 1)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	int32 Limit = 0;
+
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	TArray<FJ3ItemAmount> BuildInputs;
 

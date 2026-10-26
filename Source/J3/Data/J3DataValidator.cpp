@@ -95,6 +95,10 @@ void FJ3DataValidator::CheckReferences(const FJ3GameData& Data, FJ3DataReport& R
 		{
 			CheckItem(Data, Report, TEXT("buildings.csv"), Line, TEXT("unlock"), ItemId);
 		}
+		if (!FPackageName::DoesPackageExist(Building.BuildingClass.GetLongPackageName()))
+		{
+			Report.AddError(TEXT("buildings.csv"), Line, FString::Printf(TEXT("class: 없는 건물 블루프린트 '%s'"), *Building.BuildingClass.ToString()));
+		}
 	}
 }
 

@@ -31,6 +31,12 @@ public:
 		return Item;
 	}
 
+	// 서버: 코드로 떨굴 때 (철거 환급이 가방에 다 안 들어갈 때 등)
+	void SetItem(const FJ3ItemStack& InItem)
+	{
+		Item = InItem;
+	}
+
 protected:
 	// TODO(아트): 아이템별 메시는 데이터에서 고른다. 지금은 블루프린트의 자리 표시 메시.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "J3|Pickup")

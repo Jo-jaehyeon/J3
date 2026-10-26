@@ -32,6 +32,9 @@ public:
 
 	// 제작: 재료를 빼고 결과물을 넣는다 (모자라거나 자리가 없으면 아무것도 바꾸지 않는다)
 	bool TryExchange(const TArray<struct FJ3ItemAmount>& Inputs, const struct FJ3ItemAmount& Output);
+
+	// 건설: 재료를 모두 뺀다 (하나라도 모자라면 아무것도 빼지 않는다)
+	bool TryRemoveAll(const TArray<struct FJ3ItemAmount>& Inputs);
 	bool EquipFromSlot(int32 SlotIndex);
 	bool UnequipToInventory(int32 EquipIndex);
 	bool SwapEquipment(int32 EquipIndexA, int32 EquipIndexB);

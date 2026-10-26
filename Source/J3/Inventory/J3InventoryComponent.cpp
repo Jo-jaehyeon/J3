@@ -127,6 +127,23 @@ bool UJ3InventoryComponent::TryExchange(const TArray<FJ3ItemAmount>& Inputs, con
 }
 
 
+bool UJ3InventoryComponent::TryRemoveAll(const TArray<FJ3ItemAmount>& Inputs)
+{
+	check(GetOwner()->HasAuthority());
+
+	if (!J3InventoryLogic::HasAll(Slots, Inputs))
+	{
+		return false;
+	}
+	for (const FJ3ItemAmount& Input : Inputs)
+	{
+		J3InventoryLogic::Remove(Slots, Input.ItemId, Input.Count);
+	}
+	NotifyChanged();
+	return true;
+}
+
+
 void UJ3InventoryComponent::RecordObtained(FName ItemId) const
 {
 	if (AJ3GameState* GameState = GetWorld()->GetGameState<AJ3GameState>())

@@ -3,6 +3,8 @@
 #include "Core/J3PlayerController.h"
 
 #include "EnhancedInputSubsystems.h"
+#include "Building/J3BuilderComponent.h"
+#include "Building/J3BuildingBase.h"
 #include "Core/J3PlayerState.h"
 #include "Data/J3DataSubsystem.h"
 #include "Engine/LocalPlayer.h"
@@ -162,4 +164,41 @@ void AJ3PlayerController::UpdateRotation(float DeltaTime)
 	Clamped.Yaw += FMath::Clamp(Delta.Yaw, -YawLimit, YawLimit);
 	Clamped.Pitch += FMath::Clamp(Delta.Pitch, -PitchLimit, PitchLimit);
 	SetControlRotation(Clamped.GetNormalized());
+}
+
+
+bool AJ3PlayerController::TraceFromView(FHitResult& OutHit) const
+{
+	FVector ViewLocation;
+	FRotator ViewRotation;
+	GetPlayerViewPoint(ViewLocation, ViewRotation);
+	const float RangeCm = UJ3DataSubsystem::Get()->GetConfigFloat("build_range_cm", 1500.f);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(J3BuildAim), true, GetPawn());
+	return GetWorld()->LineTraceSingleByChannel(OutHit, ViewLocation, ViewLocation + ViewRotation.Vector() * RangeCm, ECC_Visibility, Params);
+}
+
+
+void AJ3PlayerController::J3Build(FName BuildingId, float YawDeg)
+{
+#if !UE_BUILD_SHIPPING
+	FHitResult Hit;
+	const AJ3PlayerState* J3PlayerState = GetPlayerState<AJ3PlayerState>();
+	if (J3PlayerState != nullptr && TraceFromView(Hit))
+	{
+		J3PlayerState->GetBuilder()->Server_PlaceBuilding(BuildingId, Hit.ImpactPoint, YawDeg);
+	}
+#endif
+}
+
+
+void AJ3PlayerController::J3Demolish()
+{
+#if !UE_BUILD_SHIPPING
+	FHitResult Hit;
+	const AJ3PlayerState* J3PlayerState = GetPlayerState<AJ3PlayerState>();
+	if (J3PlayerState != nullptr && TraceFromView(Hit))
+	{
+		J3PlayerState->GetBuilder()->Server_Demolish(Cast<AJ3BuildingBase>(Hit.GetActor()));
+	}
+#endif
 }

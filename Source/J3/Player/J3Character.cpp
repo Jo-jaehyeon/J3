@@ -297,17 +297,28 @@ void AJ3Character::Server_Interact_Implementation(AActor* Target)
 
 float AJ3Character::GetBodyDistanceTo(const AActor* Target) const
 {
-	// 대상 표면에서 캡슐 중심선에 가장 가까운 점을 구하고, 캡슐 반지름을 뺀다
+	// 캡슐 중심선 (반지름은 마지막에 뺀다)
 	const UCapsuleComponent* Capsule = GetCapsuleComponent();
 	const float Radius = Capsule->GetScaledCapsuleRadius();
 	const FVector Axis = FVector(0.f, 0.f, Capsule->GetScaledCapsuleHalfHeight() - Radius);
 	const FVector Center = Capsule->GetComponentLocation();
-	const UPrimitiveComponent* TargetPrimitive = Cast<UPrimitiveComponent>(Target->GetRootComponent());
-	FVector TargetPoint = Target->GetActorLocation();
-	if (TargetPrimitive != nullptr)
+	auto DistanceFromBody = [&](const FVector& Point)
 	{
-		TargetPrimitive->GetClosestPointOnCollision(Center, TargetPoint);
+		const FVector OnAxis = FMath::ClosestPointOnSegment(Point, Center - Axis, Center + Axis);
+		return FMath::Max(0.f, FVector::Dist(Point, OnAxis) - Radius);
+	};
+
+
+	// 대상의 충돌하는 모든 부분 중 가장 가까운 표면까지 (건물은 루트가 메시가 아닌 원점이라 루트만 보면 안 된다)
+	float Best = TNumericLimits<float>::Max();
+	TInlineComponentArray<UPrimitiveComponent*> Primitives(Target);
+	for (const UPrimitiveComponent* Primitive : Primitives)
+	{
+		FVector Point;
+		if (Primitive->IsCollisionEnabled() && Primitive->GetClosestPointOnCollision(Center, Point) >= 0.f)
+		{
+			Best = FMath::Min(Best, DistanceFromBody(Point));
+		}
 	}
-	const FVector OnAxis = FMath::ClosestPointOnSegment(TargetPoint, Center - Axis, Center + Axis);
-	return FMath::Max(0.f, FVector::Dist(TargetPoint, OnAxis) - Radius);
+	return Best < TNumericLimits<float>::Max() ? Best : DistanceFromBody(Target->GetActorLocation());
 }

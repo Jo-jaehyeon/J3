@@ -23,6 +23,14 @@ public:
 	UFUNCTION(Exec)
 	void J3Give(FName ItemId, int32 Count = 1);
 
+	// 개발용 치트 (콘솔: J3Build foundation 0) 조준한 곳에 건물을 짓는다. TODO(단계 4 건설 모드): 건설 메뉴로 대체
+	UFUNCTION(Exec)
+	void J3Build(FName BuildingId, float YawDeg = 0.f);
+
+	// 개발용 치트 (콘솔: J3Demolish) 조준한 건물을 철거한다. TODO(단계 4 철거 모드): F키로 대체
+	UFUNCTION(Exec)
+	void J3Demolish();
+
 	// I키: 인벤토리 화면 열기/닫기. 열려 있는 동안 마우스 커서가 나오고 시점 회전은 멈춘다.
 	void ToggleInventoryScreen();
 
@@ -67,6 +75,9 @@ private:
 
 	// 화면(인벤토리·제작)이 하나라도 열려 있으면 커서를 보이고 시점 회전을 멈춘다
 	void RefreshUIInputMode(UUserWidget* FocusWidget);
+
+	// 조준점이 가리키는 곳 (건설 거리까지)
+	bool TraceFromView(FHitResult& OutHit) const;
 
 	// 채취를 시작한 순간의 시점 방향
 	bool bWasHarvesting = false;

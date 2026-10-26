@@ -5,6 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/J3EquipmentAbilityComponent.h"
 #include "Abilities/J3SurvivalAttributeSet.h"
+#include "Building/J3BuilderComponent.h"
 #include "Crafting/J3CraftingComponent.h"
 #include "Inventory/J3InventoryComponent.h"
 #include "Player/J3SurvivalComponent.h"
@@ -23,6 +24,7 @@ AJ3PlayerState::AJ3PlayerState()
 	Inventory = CreateDefaultSubobject<UJ3InventoryComponent>(TEXT("Inventory"));
 	EquipmentAbilities = CreateDefaultSubobject<UJ3EquipmentAbilityComponent>(TEXT("EquipmentAbilities"));
 	Crafting = CreateDefaultSubobject<UJ3CraftingComponent>(TEXT("Crafting"));
+	Builder = CreateDefaultSubobject<UJ3BuilderComponent>(TEXT("Builder"));
 
 
 	// PlayerState 기본 복제 빈도는 낮아서 HP 변화가 늦게 보이므로 올린다

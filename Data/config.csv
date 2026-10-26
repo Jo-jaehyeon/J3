@@ -34,3 +34,6 @@ resource_guarantee_radius_cm,3000,시작 지점에서 T0·T1 노드를 보장하
 resource_min_spacing_cm,300,자원 노드 사이 최소 거리 (제안: 임시값)
 resource_place_attempts,32,노드 하나를 놓을 자리를 찾는 최대 시도 횟수 (제안)
 resource_trace_half_height_cm,20000,자원 노드 지면 찾기 범위 (배치 액터 높이 기준 위아래, 제안)
+max_buildings,2000,규모 상한: 건물 수 (임시, 단계 9 측정으로 조정)
+build_range_cm,1500,건설·철거 가능 거리 (제안: 임시값)
+build_index_cell_cm,800,건물 공간 인덱스 칸 크기 (제안)
