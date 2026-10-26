@@ -55,13 +55,14 @@ namespace J3FactoryBenchPrivate
 	// 몇 초마다 측정값을 로그로 남긴다
 	void StartStatsLog(UJ3FactorySimSubsystem& Simulation)
 	{
+		const TCHAR* Role = Simulation.GetWorld()->GetNetMode() == NM_Client ? TEXT("클라") : TEXT("서버");
 		TWeakObjectPtr<UJ3FactorySimSubsystem> WeakSimulation(&Simulation);
 		FTimerHandle Handle;
-		Simulation.GetWorld()->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([WeakSimulation]()
+		Simulation.GetWorld()->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([WeakSimulation, Role]()
 		{
 			if (const UJ3FactorySimSubsystem* Sim = WeakSimulation.Get())
 			{
-				UE_LOG(LogJ3Factory, Display, TEXT("[Bench] 구간 %d, 아이템 %d, 틱 계산 %.3f ms"), Sim->GetSegments().Num(), Sim->CountItems(), Sim->GetLastStepMs());
+				UE_LOG(LogJ3Factory, Display, TEXT("[Bench][%s] 구간 %d, 아이템 %d, 틱 계산 %.3f ms"), Role, Sim->GetSegments().Num(), Sim->CountItems(), Sim->GetLastStepMs());
 			}
 		}), StatsIntervalSec, true);
 	}
@@ -90,6 +91,17 @@ namespace J3FactoryBench
 		}
 		UE_LOG(LogJ3Factory, Display, TEXT("[Bench] 고리 %d개, 구간 %d, 아이템 %d"), RingCount, Simulation.GetSegments().Num(), Simulation.CountItems());
 		StartStatsLog(Simulation);
+	}
+
+
+	void StartClientStatsFromConsoleVariable(UJ3FactorySimSubsystem& Simulation)
+	{
+#if !UE_BUILD_SHIPPING
+		if (!J3FactoryBenchPrivate::CVarAutoSpawn.GetValueOnGameThread().IsEmpty())
+		{
+			J3FactoryBenchPrivate::StartStatsLog(Simulation);
+		}
+#endif
 	}
 
 

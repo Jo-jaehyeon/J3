@@ -15,4 +15,7 @@ namespace J3FactoryBench
 {
 	void SpawnRings(UJ3FactorySimSubsystem& Simulation, int32 SegmentCount, int32 ItemsPerSegment);
 	void SpawnFromConsoleVariable(UJ3FactorySimSubsystem& Simulation);
+
+	// 클라이언트: 벤치마크 중이면 받은 상태를 같은 형식으로 기록한다 (서버와 아이템 수 비교)
+	void StartClientStatsFromConsoleVariable(UJ3FactorySimSubsystem& Simulation);
 }

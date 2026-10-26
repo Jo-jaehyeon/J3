@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "Factory/J3BeltVisualizer.h"
 #include "Factory/J3FactoryBench.h"
+#include "Factory/J3FactoryReplicator.h"
 #include "J3ProjectSettings.h"
 #include "Factory/J3BeltLogic.h"
 #include "HAL/PlatformTime.h"
@@ -47,11 +48,19 @@ void UJ3FactorySimSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	}
 
 
-	// 개발용: 시작하자마자 벤치마크 컨베이어를 깐다 (서버만, 복제는 다음 단계)
-	if (InWorld.GetNetMode() != NM_Client)
+	// 서버: 클라이언트로 상태를 보내는 액터를 만든다 (클라이언트에는 복제되어 생긴다)
+	if (InWorld.GetNetMode() == NM_Client)
 	{
-		J3FactoryBench::SpawnFromConsoleVariable(*this);
+		J3FactoryBench::StartClientStatsFromConsoleVariable(*this);
+		return;
 	}
+	FActorSpawnParameters ReplicatorParams;
+	ReplicatorParams.ObjectFlags |= RF_Transient;
+	InWorld.SpawnActor<AJ3FactoryReplicator>(AJ3FactoryReplicator::StaticClass(), ReplicatorParams);
+
+
+	// 개발용: 시작하자마자 벤치마크 컨베이어를 깐다
+	J3FactoryBench::SpawnFromConsoleVariable(*this);
 }
 
 
