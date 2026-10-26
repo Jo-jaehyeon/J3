@@ -4,6 +4,7 @@
 
 #include "Algo/AllOf.h"
 #include "Data/J3CsvTable.h"
+#include "Misc/PackageName.h"
 
 
 namespace J3DataValidatorPrivate
@@ -45,6 +46,7 @@ namespace J3DataValidatorPrivate
 void FJ3DataValidator::Validate(const FJ3GameData& Data, FJ3DataReport& Report)
 {
 	CheckReferences(Data, Report);
+	CheckEquipment(Data, Report);
 
 
 	// 참조가 깨져 있으면 도달 검사 결과가 오류를 중복으로 쏟아내므로 건너뛴다
@@ -91,6 +93,43 @@ void FJ3DataValidator::CheckReferences(const FJ3GameData& Data, FJ3DataReport& R
 		for (const FName& ItemId : Building.Unlock.Items)
 		{
 			CheckItem(Data, Report, TEXT("buildings.csv"), Line, TEXT("unlock"), ItemId);
+		}
+	}
+}
+
+
+void FJ3DataValidator::CheckEquipment(const FJ3GameData& Data, FJ3DataReport& Report)
+{
+	using namespace J3DataValidatorPrivate;
+
+	for (const TPair<FName, FJ3EquipmentDef>& Pair : Data.Equipment)
+	{
+		// 장비 아이템이 있고 장비 칸에 들어가는 종류인지
+		const FJ3EquipmentDef& Equipment = Pair.Value;
+		const int32 Line = LineOf(Data.EquipmentLines, Equipment.Id);
+		const FJ3ItemDef* Item = Data.Items.Find(Equipment.Id);
+		if (Item == nullptr)
+		{
+			Report.AddError(TEXT("equipment.csv"), Line, FString::Printf(TEXT("id: 없는 아이템 '%s'"), *Equipment.Id.ToString()));
+		}
+		else if (!J3IsEquipmentCategory(Item->Category))
+		{
+			Report.AddError(TEXT("equipment.csv"), Line, FString::Printf(TEXT("id: '%s'은(는) 장비가 아닙니다 (category %s)"), *Equipment.Id.ToString(), *Item->Category.ToString()));
+		}
+
+
+		// GA 블루프린트가 실제로 있는지 (클래스 종류는 장착할 때 확인한다)
+		const FString PackageName = Equipment.Ability.GetLongPackageName();
+		if (PackageName.IsEmpty() || !FPackageName::DoesPackageExist(PackageName))
+		{
+			Report.AddError(TEXT("equipment.csv"), Line, FString::Printf(TEXT("ability: 없는 GA 경로 '%s'"), *Equipment.Ability.ToString()));
+		}
+
+
+		// 탄약
+		if (!Equipment.AmmoItem.IsNone())
+		{
+			CheckItem(Data, Report, TEXT("equipment.csv"), Line, TEXT("ammo"), Equipment.AmmoItem);
 		}
 	}
 }

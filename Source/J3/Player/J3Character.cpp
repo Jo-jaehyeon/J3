@@ -69,6 +69,10 @@ void AJ3Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	{
 		EnhancedInput->BindAction(CycleEquipmentAction, ETriggerEvent::Triggered, this, &AJ3Character::CycleEquipment);
 	}
+	if (AttackAction != nullptr)
+	{
+		EnhancedInput->BindAction(AttackAction, ETriggerEvent::Started, this, &AJ3Character::Attack);
+	}
 	if (InventoryAction != nullptr)
 	{
 		EnhancedInput->BindAction(InventoryAction, ETriggerEvent::Started, this, &AJ3Character::ToggleInventory);
@@ -175,5 +179,31 @@ void AJ3Character::ToggleInventory()
 	if (UJ3InventoryComponent* Inventory = GetInventory())
 	{
 		Inventory->ToggleDebugView();
+	}
+}
+
+
+void AJ3Character::Attack()
+{
+	// 손에 든 장비가 부여한 공격 능력(InputTag.Attack)을 발동한다. 맨손이면 부여된 능력이 없어 아무 일도 없다.
+	UAbilitySystemComponent* AbilitySystem = GetAbilitySystemComponent();
+	if (AbilitySystem == nullptr)
+	{
+		return;
+	}
+
+
+	// 발동 중에 능력 목록이 바뀔 수 있으므로 핸들을 먼저 모은다
+	TArray<FGameplayAbilitySpecHandle> Handles;
+	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
+	{
+		if (Spec.GetDynamicSpecSourceTags().HasTagExact(J3Tags::InputTag_Attack))
+		{
+			Handles.Add(Spec.Handle);
+		}
+	}
+	for (const FGameplayAbilitySpecHandle& Handle : Handles)
+	{
+		AbilitySystem->TryActivateAbility(Handle);
 	}
 }

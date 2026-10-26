@@ -48,6 +48,7 @@ protected:
 	void Look(const FInputActionValue& Value);
 	void CycleEquipment(const FInputActionValue& Value);
 	void ToggleInventory();
+	void Attack();
 
 
 	// 시점
@@ -77,6 +78,10 @@ protected:
 	// 마우스 휠: 장비 4칸 순환 (건설 모드에서는 회전, 단계 4)
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputAction> CycleEquipmentAction;
+
+	// 우클릭: 손에 든 무기의 공격 능력 (무기와 상관없이 같은 버튼)
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> AttackAction;
 
 	// I: 인벤토리 열기
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")

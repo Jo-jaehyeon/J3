@@ -19,6 +19,7 @@ private:
 	static void LoadItems(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 	static void LoadRecipes(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 	static void LoadBuildings(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
+	static void LoadEquipment(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 	static void LoadConfig(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 
 	static FString ComputeHash(const TArray<FString>& RawContents);

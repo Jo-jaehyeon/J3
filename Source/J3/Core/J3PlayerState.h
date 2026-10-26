@@ -8,6 +8,7 @@
 #include "J3PlayerState.generated.h"
 
 class UAbilitySystemComponent;
+class UJ3EquipmentAbilityComponent;
 class UJ3InventoryComponent;
 class UJ3SurvivalAttributeSet;
 class UJ3SurvivalComponent;
@@ -48,4 +49,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "J3|Inventory")
 	TObjectPtr<UJ3InventoryComponent> Inventory;
+
+	UPROPERTY(VisibleAnywhere, Category = "J3|Abilities")
+	TObjectPtr<UJ3EquipmentAbilityComponent> EquipmentAbilities;
 };

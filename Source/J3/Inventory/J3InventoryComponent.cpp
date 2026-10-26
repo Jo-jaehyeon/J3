@@ -77,13 +77,8 @@ void UJ3InventoryComponent::BeginPlay()
 
 bool UJ3InventoryComponent::IsEquippable(FName ItemId)
 {
-	// 장비 칸에는 도구와 무기만 들어간다. 화살 같은 탄약은 인벤토리에서 소모한다 (Inventory_And_UI 2절).
 	const FJ3ItemDef* Item = UJ3DataSubsystem::Get()->GetItem(ItemId);
-	if (Item == nullptr)
-	{
-		return false;
-	}
-	return Item->Category == "tool" || Item->Category == "tool_weapon" || Item->Category == "weapon";
+	return Item != nullptr && J3IsEquipmentCategory(Item->Category);
 }
 
 
@@ -327,6 +322,10 @@ void UJ3InventoryComponent::ApplyDebugGiveOnSpawn()
 		while (!Slots[SlotIndex].IsEmpty() && IsEquippable(Slots[SlotIndex].ItemId) && EquipFromSlot(SlotIndex))
 		{
 		}
+	}
+	if (!Equipment[0].IsEmpty())
+	{
+		HeldEquipIndex = 0;
 	}
 #endif
 }

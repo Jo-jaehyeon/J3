@@ -131,18 +131,57 @@ struct FJ3BuildingDef
 };
 
 
+// 장비 칸에 들어가는 아이템 종류인지 (도구·무기). 탄약은 장비 칸이 아니라 인벤토리에서 소모한다 (Inventory_And_UI 2절).
+inline bool J3IsEquipmentCategory(FName Category)
+{
+	return Category == "tool" || Category == "tool_weapon" || Category == "weapon";
+}
+
+
+// equipment.csv 한 행: 장비(무기)와 그 장비를 들었을 때 부여할 능력(GA), 무기 수치
+USTRUCT(BlueprintType)
+struct FJ3EquipmentDef
+{
+	GENERATED_BODY()
+
+	// items.csv의 장비 아이템 ID
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName Id;
+
+	// 손에 들었을 때 부여하는 GA 클래스 (블루프린트 경로)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FSoftClassPath Ability;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float Damage = 0.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float RangeCm = 0.f;
+
+	// 음수면 미정(빈 칸). config의 weapon_default_cooldown_sec을 쓴다.
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float CooldownSec = -1.f;
+
+	// 쏠 때마다 1개 소모하는 탄약 (없으면 None)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName AmmoItem;
+};
+
+
 // 한 번 읽어 들인 전체 게임 데이터. 검증을 통과한 것만 서브시스템에 반영된다.
 struct FJ3GameData
 {
 	TMap<FName, FJ3ItemDef> Items;
 	TMap<FName, FJ3RecipeDef> Recipes;
 	TMap<FName, FJ3BuildingDef> Buildings;
+	TMap<FName, FJ3EquipmentDef> Equipment;
 	TMap<FName, float> Config;
 
 	// 검증 오류에 원본 줄 번호를 알려 주기 위한 행 위치 (ID → CSV 줄)
 	TMap<FName, int32> ItemLines;
 	TMap<FName, int32> RecipeLines;
 	TMap<FName, int32> BuildingLines;
+	TMap<FName, int32> EquipmentLines;
 
 	// 서버·클라 데이터 일치 확인용 (원본 파일 내용 기준)
 	FString Hash;

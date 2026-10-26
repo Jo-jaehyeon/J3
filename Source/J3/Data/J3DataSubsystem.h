@@ -36,6 +36,7 @@ public:
 	const FJ3ItemDef* GetItem(FName ItemId) const;
 	const FJ3RecipeDef* GetRecipe(FName RecipeId) const;
 	const FJ3BuildingDef* GetBuilding(FName BuildingId) const;
+	const FJ3EquipmentDef* GetEquipment(FName ItemId) const;
 
 	const TMap<FName, FJ3ItemDef>& GetAllItems() const
 	{

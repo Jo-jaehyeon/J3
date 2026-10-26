@@ -190,11 +190,12 @@ bool FJ3DataLoader::LoadAll(const FString& DataDir, FJ3GameData& OutData, FJ3Dat
 {
 	// 표 읽기. 표 하나가 실패해도 나머지 표의 오류까지 한 번에 보여 주려고 끝까지 읽는다.
 	TArray<FString> RawContents;
-	RawContents.SetNum(4);
+	RawContents.SetNum(5);
 	LoadItems(DataDir, OutData, Report, RawContents[0]);
 	LoadRecipes(DataDir, OutData, Report, RawContents[1]);
 	LoadBuildings(DataDir, OutData, Report, RawContents[2]);
 	LoadConfig(DataDir, OutData, Report, RawContents[3]);
+	LoadEquipment(DataDir, OutData, Report, RawContents[4]);
 
 
 	// 서버·클라 비교용 해시
@@ -279,6 +280,32 @@ void FJ3DataLoader::LoadBuildings(const FString& DataDir, FJ3GameData& OutData, 
 		Def.Unlock = Reader.RequiredUnlock("unlock");
 		Def.Note = Reader.Optional("note");
 		AddUnique(OutData.Buildings, &OutData.BuildingLines, MoveTemp(Def), Reader);
+	}
+}
+
+
+void FJ3DataLoader::LoadEquipment(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw)
+{
+	using namespace J3DataLoaderPrivate;
+
+	FJ3CsvTable Table;
+	if (!OpenTable(Table, DataDir, TEXT("equipment.csv"), { "id", "ability", "damage", "range_cm", "cooldown_sec", "ammo" }, Report, OutRaw))
+	{
+		return;
+	}
+
+
+	for (const FJ3CsvTable::FRow& Row : Table.GetRows())
+	{
+		FRowReader Reader{ Table, Row, Report };
+		FJ3EquipmentDef Def;
+		Def.Id = FName(*Reader.Required("id"));
+		Def.Ability = FSoftClassPath(Reader.Required("ability"));
+		Def.Damage = Reader.OptionalFloat("damage", 0.f);
+		Def.RangeCm = Reader.OptionalFloat("range_cm", 0.f);
+		Def.CooldownSec = Reader.OptionalFloat("cooldown_sec", -1.f);
+		Def.AmmoItem = FName(*Reader.Optional("ammo"));
+		AddUnique(OutData.Equipment, &OutData.EquipmentLines, MoveTemp(Def), Reader);
 	}
 }
 

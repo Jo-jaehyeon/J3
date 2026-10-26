@@ -104,7 +104,7 @@ void UJ3DataSubsystem::ReportResult(const FJ3DataReport& Report, bool bApplied) 
 	FColor Color = FColor::Green;
 	if (bApplied)
 	{
-		Summary = FString::Printf(TEXT("[J3 Data] 반영됨: 아이템 %d, 레시피 %d, 건물 %d, 설정 %d (hash %s)"), Data.Items.Num(), Data.Recipes.Num(), Data.Buildings.Num(), Data.Config.Num(), *Data.Hash.Left(8));
+		Summary = FString::Printf(TEXT("[J3 Data] 반영됨: 아이템 %d, 레시피 %d, 건물 %d, 장비 %d, 설정 %d (hash %s)"), Data.Items.Num(), Data.Recipes.Num(), Data.Buildings.Num(), Data.Equipment.Num(), Data.Config.Num(), *Data.Hash.Left(8));
 		UE_LOG(LogJ3Data, Display, TEXT("%s"), *Summary);
 	}
 	else
@@ -135,6 +135,12 @@ const FJ3RecipeDef* UJ3DataSubsystem::GetRecipe(FName RecipeId) const
 const FJ3BuildingDef* UJ3DataSubsystem::GetBuilding(FName BuildingId) const
 {
 	return Data.Buildings.Find(BuildingId);
+}
+
+
+const FJ3EquipmentDef* UJ3DataSubsystem::GetEquipment(FName ItemId) const
+{
+	return Data.Equipment.Find(ItemId);
 }
 
 

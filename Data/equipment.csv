@@ -1,0 +1,4 @@
+id,ability,damage,range_cm,cooldown_sec,ammo,note
+stone_axe,/Game/J3/Abilities/GA_MeleeSwing.GA_MeleeSwing_C,1,150,,,근접 (수치 임시)
+iron_axe,/Game/J3/Abilities/GA_MeleeSwing.GA_MeleeSwing_C,1,150,,,근접 (수치 임시)
+bow,/Game/J3/Abilities/GA_BowShot.GA_BowShot_C,1,3000,,arrow,원거리·화살 소모 (수치 임시)
