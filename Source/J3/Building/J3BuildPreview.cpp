@@ -3,6 +3,7 @@
 #include "Building/J3BuildPreview.h"
 
 #include "Building/J3BuildingBase.h"
+#include "Building/J3PortArrows.h"
 #include "Components/StaticMeshComponent.h"
 #include "J3ProjectSettings.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -18,11 +19,27 @@ AJ3BuildPreview::AJ3BuildPreview()
 	Mesh->SetupAttachment(RootComponent);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Mesh->SetCastShadow(false);
+	InArrows = CreateDefaultSubobject<UJ3PortArrowsComponent>(TEXT("InArrows"));
+	InArrows->SetupAttachment(RootComponent);
+	InArrows->Setup(EJ3PortDirection::In, J3PortArrows::InColor);
+	OutArrows = CreateDefaultSubobject<UJ3PortArrowsComponent>(TEXT("OutArrows"));
+	OutArrows->SetupAttachment(RootComponent);
+	OutArrows->Setup(EJ3PortDirection::Out, J3PortArrows::OutColor);
 }
 
 
-void AJ3BuildPreview::SetBuildingClass(TSubclassOf<AJ3BuildingBase> BuildingClass)
+void AJ3BuildPreview::SetBuildingClass(TSubclassOf<AJ3BuildingBase> BuildingClass, bool bShowPorts)
 {
+	// 포트 화살표 (청사진에서만 보인다)
+	TArray<FJ3PortInfo> Ports;
+	if (bShowPorts)
+	{
+		AJ3BuildingBase::GetClassPorts(BuildingClass, Ports);
+	}
+	InArrows->SetPorts(Ports);
+	OutArrows->SetPorts(Ports);
+
+
 	// 건물 블루프린트 기본값의 메시·위치·배율을 복사한다
 	const AJ3BuildingBase* Default = BuildingClass != nullptr ? BuildingClass->GetDefaultObject<AJ3BuildingBase>() : nullptr;
 	const UStaticMeshComponent* SourceMesh = Default != nullptr ? Default->FindComponentByClass<UStaticMeshComponent>() : nullptr;

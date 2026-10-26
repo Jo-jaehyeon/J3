@@ -3,6 +3,8 @@
 #include "Factory/J3FactorySimSubsystem.h"
 
 #include "Building/J3MachineBuildings.h"
+#include "Building/J3StorageBuilding.h"
+#include "Factory/J3BeltLogic.h"
 #include "Data/J3DataSubsystem.h"
 #include "Factory/J3MachineLogic.h"
 
@@ -191,6 +193,10 @@ void UJ3FactorySimSubsystem::StepSimulation()
 
 void UJ3FactorySimSubsystem::StepMachines()
 {
+	// 컨베이어와 주고받기를 먼저 하고 기계를 돌린다
+	TransferBeltsAndMachines();
+
+
 	// 기계 상태는 서버만 계산한다 (클라이언트는 복제된 칸 내용과 주기 시작 시각만 본다)
 	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
 	for (FJ3MachineState& State : Machines)
@@ -225,8 +231,116 @@ int32 UJ3FactorySimSubsystem::AddMachine(const FJ3MachineState& InitialState, AJ
 
 void UJ3FactorySimSubsystem::RemoveMachine(int32 MachineId)
 {
+	// 이 기계로 이어진 연결도 끊는다
 	Machines.RemoveAll([MachineId](const FJ3MachineState& State) { return State.Id == MachineId; });
 	MachineOwners.Remove(MachineId);
+	MachineOutputs.Remove(MachineId);
+	for (auto It = SegmentSinks.CreateIterator(); It; ++It)
+	{
+		if (It.Value().MachineId == MachineId)
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
+
+void UJ3FactorySimSubsystem::SetMachineOutput(int32 MachineId, int32 SegmentId)
+{
+	MachineOutputs.Add(MachineId, SegmentId);
+}
+
+
+void UJ3FactorySimSubsystem::SetSegmentSinkMachine(int32 SegmentId, int32 MachineId)
+{
+	FSegmentSink Sink;
+	Sink.MachineId = MachineId;
+	SegmentSinks.Add(SegmentId, Sink);
+}
+
+
+void UJ3FactorySimSubsystem::SetSegmentSinkStorage(int32 SegmentId, AJ3StorageBuilding* Storage)
+{
+	FSegmentSink Sink;
+	Sink.Storage = Storage;
+	SegmentSinks.Add(SegmentId, Sink);
+}
+
+
+void UJ3FactorySimSubsystem::ClearSegmentLinks(int32 SegmentId)
+{
+	SegmentSinks.Remove(SegmentId);
+	for (auto It = MachineOutputs.CreateIterator(); It; ++It)
+	{
+		if (It.Value() == SegmentId)
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
+
+void UJ3FactorySimSubsystem::TransferBeltsAndMachines()
+{
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	TSet<int32> Changed;
+
+
+	// 컨베이어 끝에 닿은 맨 앞 아이템을 받는 쪽에 넣는다. 받지 못하면(칸이 차거나 맞지 않는 재료) 끝에서 기다린다
+	for (const TPair<int32, FSegmentSink>& Pair : SegmentSinks)
+	{
+		FJ3BeltSegment* Segment = FindSegmentMutable(Pair.Key);
+		if (Segment == nullptr || Segment->Items.Num() == 0 || Segment->Items[0].Offset < Segment->LengthCm - KINDA_SMALL_NUMBER)
+		{
+			continue;
+		}
+		const FName ItemId = Data->GetItemIdByType(Segment->Items[0].Type);
+		bool bAccepted = false;
+		FJ3MachineState* State = Pair.Value.MachineId != INDEX_NONE ? FindMachineMutable(Pair.Value.MachineId) : nullptr;
+		const FJ3MachineDef* Def = State != nullptr ? Data->GetMachine(State->BuildingId) : nullptr;
+		if (Def != nullptr)
+		{
+			const FName BuildingId = State->BuildingId;
+			bAccepted = J3MachineLogic::Insert(*State, *Def, ItemId, 1,
+				[BuildingId](FName Item) { return FindMachineRecipe(BuildingId, Item); },
+				[Data](FName Item) { const FJ3FuelDef* Fuel = Data->GetFuel(Item); return Fuel != nullptr ? Fuel->BurnSec : 0.f; }) == 1;
+			if (bAccepted)
+			{
+				NotifyMachineChanged(State->Id);
+			}
+		}
+		else if (Pair.Value.Storage.IsValid())
+		{
+			bAccepted = Pair.Value.Storage->AddItem(ItemId, 1) == 0;
+		}
+		if (bAccepted)
+		{
+			Segment->Items.RemoveAt(0);
+			Changed.Add(Segment->Id);
+		}
+	}
+
+
+	// 기계 출력 칸에서 한 틱에 하나씩 컨베이어 시작에 올린다 (자리가 없으면 출력 칸에 계속 쌓인다)
+	for (const TPair<int32, int32>& Pair : MachineOutputs)
+	{
+		FJ3MachineState* State = FindMachineMutable(Pair.Key);
+		FJ3BeltSegment* Segment = FindSegmentMutable(Pair.Value);
+		if (State == nullptr || Segment == nullptr || State->Output.IsEmpty())
+		{
+			continue;
+		}
+		if (J3BeltLogic::TryInsert(*Segment, Data->GetItemTypeId(State->Output.ItemId)))
+		{
+			J3MachineLogic::Take(*State, EJ3MachineSlot::Output, 1);
+			NotifyMachineChanged(State->Id);
+			Changed.Add(Segment->Id);
+		}
+	}
+	if (Changed.Num() > 0)
+	{
+		NotifySegmentsChanged(Changed);
+	}
 }
 
 

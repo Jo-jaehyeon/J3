@@ -25,6 +25,9 @@ enum class EJ3PlacementResult : uint8
 	ConveyorTooShort,
 	ConveyorTooLong,
 	ConveyorTooSharp,
+	PortInUse,
+	NeedsOutputPort,
+	NeedsInputPort,
 };
 
 

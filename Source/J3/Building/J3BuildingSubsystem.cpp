@@ -370,26 +370,30 @@ EJ3PlacementResult UJ3BuildingSubsystem::CheckCommon(FName BuildingId, const FJ3
 }
 
 
-bool UJ3BuildingSubsystem::ResolveConveyorEnd(bool bStart, const FVector& Aim, const AActor* Builder, FVector& OutLocation, FVector& OutDirection, bool& bOutHasDirection) const
+EJ3PlacementResult UJ3BuildingSubsystem::ResolveConveyorEnd(bool bStart, const FVector& Aim, const AActor* Builder, FVector& OutLocation, FVector& OutDirection, bool& bOutDirected) const
 {
-	// 근처 건물 (컨베이어는 시작점에 등록되어 있어 끝점을 찾으려면 최대 길이만큼 넓게 본다)
+	// 근처 건물 (컨베이어는 시작점에 등록되어 있어, 끝점까지 보려면 최대 길이만큼 넓게 본다)
 	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
 	const float SnapCm = Data->GetConfigFloat("build_port_snap_radius_cm", 150.f);
 	const float SearchCm = Data->GetConfigFloat("conveyor_max_length_cm", 3000.f) + SnapCm;
 	const TArray<AJ3BuildingBase*> Nearby = FindBuildingsInBox(FBox(Aim - FVector(SearchCm), Aim + FVector(SearchCm)));
 
 
-	// 붙을 수 있는 점: 시작은 출력 포트·컨베이어 끝, 끝은 입력 포트·컨베이어 시작. 이미 다른 컨베이어가 쓰는 점은 뺀다
+	// 붙을 수 있는 점: 시작은 출구·바닥에서 멈춘 컨베이어 끝, 끝은 입구·바닥에서 시작한 컨베이어 시작.
+	// 이미 쓰는 점은 막는다: 다른 컨베이어가 붙은 포트, 그리고 반대쪽 포트에 들어간 컨베이어 끝(입구에 들어간 컨베이어 끝에서 새로 시작할 수 없다)
 	TArray<TPair<FVector, FVector>> Candidates;
 	TArray<FVector> UsedPoints;
+	TArray<FVector> OppositePorts;
+	TArray<FJ3ConveyorPath> Conveyors;
 	for (const AJ3BuildingBase* Building : Nearby)
 	{
-		const AJ3ConveyorBuilding* Conveyor = Cast<AJ3ConveyorBuilding>(Building);
-		if (Conveyor != nullptr)
+		if (const AJ3ConveyorBuilding* Conveyor = Cast<AJ3ConveyorBuilding>(Building))
 		{
-			const FJ3ConveyorPath Path = Conveyor->GetPath();
-			Candidates.Emplace(bStart ? Path.End : Path.Start, bStart ? Path.EndDirection : Path.StartDirection);
-			UsedPoints.Add(bStart ? Path.Start : Path.End);
+			Conveyors.Add(Conveyor->GetPath());
+			continue;
+		}
+		if (!Building->CanConnectConveyor())
+		{
 			continue;
 		}
 		TArray<FJ3PortInfo> Ports;
@@ -397,50 +401,67 @@ bool UJ3BuildingSubsystem::ResolveConveyorEnd(bool bStart, const FVector& Aim, c
 		for (const FJ3PortInfo& Port : Ports)
 		{
 			const bool bWanted = Port.Kind == EJ3PortKind::Item && Port.Direction == (bStart ? EJ3PortDirection::Out : EJ3PortDirection::In);
+			if (Port.Kind == EJ3PortKind::Item && !bWanted)
+			{
+				OppositePorts.Add(Port.Transform.GetLocation());
+				continue;
+			}
 			if (bWanted)
 			{
-				// 포트의 X축은 바깥을 향한다: 출력은 그 방향으로 나가고, 입력은 반대 방향으로 들어온다
+				// 포트의 X축은 바깥을 향한다: 출구는 그 방향으로 나가고, 입구는 반대 방향으로 들어온다
 				const FVector Outward = Port.Transform.GetRotation().GetForwardVector();
 				Candidates.Emplace(Port.Transform.GetLocation(), bStart ? Outward : -Outward);
 			}
 		}
 	}
-
-
-	// 조준점에 가장 가까운 비어 있는 점
-	float BestDistance = SnapCm;
-	bOutHasDirection = false;
-	for (const TPair<FVector, FVector>& Candidate : Candidates)
+	for (const FJ3ConveyorPath& Path : Conveyors)
 	{
-		const bool bUsed = UsedPoints.ContainsByPredicate([&Candidate](const FVector& Point) { return FVector::Dist(Point, Candidate.Key) <= 2.f; });
-		const float Distance = FVector::Dist(Candidate.Key, Aim);
-		if (!bUsed && Distance < BestDistance)
+		const FVector FreeEnd = bStart ? Path.End : Path.Start;
+		Candidates.Emplace(FreeEnd, bStart ? Path.EndDirection : Path.StartDirection);
+		UsedPoints.Add(bStart ? Path.Start : Path.End);
+		if (OppositePorts.ContainsByPredicate([&FreeEnd](const FVector& Point) { return FVector::Dist(Point, FreeEnd) <= 2.f; }))
 		{
-			BestDistance = Distance;
-			OutLocation = Candidate.Key;
-			OutDirection = Candidate.Value.GetSafeNormal();
-			bOutHasDirection = true;
+			UsedPoints.Add(FreeEnd);
 		}
 	}
-	if (bOutHasDirection)
+
+
+	// 조준점에 가장 가까운 점. 이미 쓰이고 있으면 막는다 (한 점에 컨베이어 하나)
+	float BestDistance = SnapCm;
+	bool bFound = false;
+	bool bBestUsed = false;
+	for (const TPair<FVector, FVector>& Candidate : Candidates)
 	{
-		return true;
+		const float Distance = FVector::Dist(Candidate.Key, Aim);
+		if (Distance < BestDistance)
+		{
+			BestDistance = Distance;
+			bBestUsed = UsedPoints.ContainsByPredicate([&Candidate](const FVector& Point) { return FVector::Dist(Point, Candidate.Key) <= 2.f; });
+			OutLocation = Candidate.Key;
+			OutDirection = Candidate.Value.GetSafeNormal();
+			bFound = true;
+		}
+	}
+	bOutDirected = bFound && !bBestUsed;
+	if (bFound)
+	{
+		return bBestUsed ? EJ3PlacementResult::PortInUse : EJ3PlacementResult::Ok;
 	}
 
 
-	// 붙을 곳이 없으면 바닥 위 포트 높이에 놓는다
+	// 붙을 곳이 없으면 찍은 바닥 위(포트 높이)에서 멈춘다
 	FHitResult Ground;
 	if (!TraceGround(Aim, Builder, nullptr, Ground))
 	{
-		return false;
+		return EJ3PlacementResult::NoGround;
 	}
 	OutLocation = J3Building::QuantizeLocation(Ground.ImpactPoint + FVector(0.f, 0.f, Data->GetConfigFloat("conveyor_height_cm", 50.f)));
 	OutDirection = FVector::ForwardVector;
-	return true;
+	return EJ3PlacementResult::Ok;
 }
 
 
-FJ3PlacementCheck UJ3BuildingSubsystem::CheckConveyor(FName BuildingId, const FVector& StartAim, const FVector& EndAim, const AJ3Character* Builder) const
+FJ3PlacementCheck UJ3BuildingSubsystem::CheckConveyor(FName BuildingId, const FVector& StartAim, const FVector& EndAim, const AJ3Character* Builder, float EndYawOffsetDeg) const
 {
 	FJ3PlacementCheck Check;
 	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
@@ -452,18 +473,20 @@ FJ3PlacementCheck UJ3BuildingSubsystem::CheckConveyor(FName BuildingId, const FV
 	}
 
 
-	// 두 끝점. 방향이 정해지지 않은 끝은 두 점을 잇는 방향 (평면 위)
+	// 두 끝 (포트·컨베이어 끝에 붙으면 그 방향, 바닥이면 두 점을 잇는 방향. 바닥 끝은 휠로 돌린 만큼 더 돌린다). 곡선은 저절로 정해진다
 	FJ3ConveyorPath& Path = Check.ConveyorPath;
 	bool bStartDirected = false;
 	bool bEndDirected = false;
-	if (!ResolveConveyorEnd(true, StartAim, Builder, Path.Start, Path.StartDirection, bStartDirected) || !ResolveConveyorEnd(false, EndAim, Builder, Path.End, Path.EndDirection, bEndDirected))
+	const EJ3PlacementResult StartResult = ResolveConveyorEnd(true, StartAim, Builder, Path.Start, Path.StartDirection, bStartDirected);
+	const EJ3PlacementResult EndResult = ResolveConveyorEnd(false, EndAim, Builder, Path.End, Path.EndDirection, bEndDirected);
+	if (StartResult != EJ3PlacementResult::Ok || EndResult != EJ3PlacementResult::Ok)
 	{
-		Check.Result = EJ3PlacementResult::NoGround;
+		Check.Result = StartResult != EJ3PlacementResult::Ok ? StartResult : EndResult;
 		return Check;
 	}
 	const FVector Chord = (Path.End - Path.Start).GetSafeNormal();
 	Path.StartDirection = bStartDirected ? Path.StartDirection : Chord;
-	Path.EndDirection = bEndDirected ? Path.EndDirection : Chord;
+	Path.EndDirection = bEndDirected ? Path.EndDirection : FRotator(0.f, J3Building::QuantizeYaw(EndYawOffsetDeg), 0.f).RotateVector(Chord);
 	Check.Transform = FTransform(Path.StartDirection.Rotation(), Path.Start);
 
 

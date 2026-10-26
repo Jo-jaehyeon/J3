@@ -16,7 +16,8 @@ class AJ3BuildingBase;
 // 같은 판정 함수로 파랑/빨강과 불가 사유를 보여 준다. 좌클릭으로 설치 요청, 휠로 회전, 우클릭·Esc로 끝낸다.
 // 숫자키 단축 칸(1~0)에 건물을 등록해 바로 들어갈 수 있고, 가운데 클릭으로 조준한 건물과 같은 건물을 고른다.
 // 철거 모드(F): 조준한 건물을 빨간 모형으로 표시하고 환급 재료를 보여 주며, 좌클릭을 길게 누르면 철거를 요청한다.
-// 컨베이어는 좌클릭 두 번(시작점 → 끝점)으로 놓고, 끝점이 비어 있으면 그 끝에서 이어서 놓는다. 우클릭·Esc는 시작점부터 취소.
+// 컨베이어는 시작점 → 끝점을 차례로 좌클릭하면 저절로 잇는다 (건설 거리 안). 점은 포트·멈춘 컨베이어 끝에 붙고, 바닥을 찍으면 거기서 멈춘다.
+// 우클릭·Esc는 고른 시작점부터 취소.
 // 확정은 서버(UJ3BuilderComponent)가 한다.
 UCLASS(ClassGroup = (J3))
 class J3_API UJ3BuildModeComponent : public UActorComponent
@@ -80,7 +81,7 @@ public:
 	void BeginPlacing(FName BuildingId);
 	void EndPlacing();
 
-	// 휠 한 칸 회전 (건설 모드에서 휠은 장비 변경 대신 회전)
+	// 휠 한 칸 회전 (건설 모드에서 휠은 장비 변경 대신 회전, 컨베이어는 바닥 끝 방향)
 	void Rotate(int32 Direction);
 
 	// 좌클릭: 지금 미리보기 위치에 설치 요청 (모드는 유지해 연달아 지을 수 있다)
@@ -152,7 +153,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<AJ3BuildPreview> DemolishHighlight;
 
-	// 컨베이어 놓기: 시작점 조준 (서버에 보낼 때 다시 판정한다)
+	// 컨베이어 놓기: 고른 시작점 조준 (서버에 보낼 때 다시 판정한다)
 	bool bConveyorMode = false;
 	bool bHasConveyorStart = false;
 	FVector ConveyorStartAim = FVector::ZeroVector;

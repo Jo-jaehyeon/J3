@@ -62,6 +62,12 @@ public:
 	// 벨트 위 아이템 (철거하면 돌려준다)
 	virtual void GetStoredItems(TArray<FJ3ItemStack>& OutItems) const override;
 
+	// 서버: 시작점·끝점에 맞닿은 컨베이어·기계·창고와 잇는다 (나중에 지어진 쪽에서도 다시 부른다)
+	void LinkNeighbors();
+
+	// 서버: 이 건물의 포트에 닿을 수 있는 컨베이어를 모두 다시 잇는다 (기계·창고가 컨베이어보다 나중에 지어졌을 때)
+	static void RelinkConveyorsNear(const AJ3BuildingBase* Building);
+
 	// 컨베이어 위에는 짓지 않는다
 	virtual bool CanSupportBuildingsOnTop() const override
 	{
@@ -77,9 +83,6 @@ protected:
 
 	// 곡선을 따라 충돌 상자를 놓는다 (조준·겹침 판정용, 플레이어는 막지 않는다)
 	void RebuildCollision();
-
-	// 서버: 시작점·끝점에 맞닿은 컨베이어와 잇는다
-	void LinkNeighbors();
 
 	UPROPERTY(ReplicatedUsing = OnRep_PathNet)
 	FJ3ConveyorPathNet PathNet;

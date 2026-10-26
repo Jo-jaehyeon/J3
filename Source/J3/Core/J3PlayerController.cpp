@@ -153,6 +153,10 @@ void AJ3PlayerController::BeginPlay()
 
 	// 개발용 2인 건설 검증 (j3.Debug.AutoBuild, 평소에는 아무것도 하지 않는다)
 	J3BuildVerify::StartAutoBuild(this);
+	if (IsLocalController() && HasAuthority())
+	{
+		J3BuildVerify::StartAutoFactory(GetWorld());
+	}
 
 
 	// 입력은 이 PC에서 조작하는 컨트롤러에만 등록한다 (서버에 있는 다른 플레이어의 컨트롤러 제외)

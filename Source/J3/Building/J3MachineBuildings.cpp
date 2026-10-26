@@ -5,6 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/J3GameplayTags.h"
 #include "Building/J3BuildingSubsystem.h"
+#include "Building/J3ConveyorBuilding.h"
 #include "Core/J3PlayerController.h"
 #include "Data/J3DataSubsystem.h"
 #include "Engine/World.h"
@@ -57,6 +58,14 @@ void AJ3MachineBuilding::BeginPlay()
 	State.BuildingId = BuildingId;
 	InitMachineState(State);
 	MachineId = Sim->AddMachine(State, this);
+	AJ3ConveyorBuilding::RelinkConveyorsNear(this);
+}
+
+
+bool AJ3MachineBuilding::CanConnectConveyor() const
+{
+	const FJ3MachineDef* Def = GetMachineDef();
+	return Def != nullptr && Def->bConveyor;
 }
 
 

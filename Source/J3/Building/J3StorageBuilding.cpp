@@ -4,6 +4,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "Abilities/J3GameplayTags.h"
+#include "Building/J3ConveyorBuilding.h"
 #include "Core/J3PlayerController.h"
 #include "Data/J3DataSubsystem.h"
 #include "Inventory/J3InventoryLogic.h"
@@ -36,6 +37,7 @@ void AJ3StorageBuilding::BeginPlay()
 	if (HasAuthority())
 	{
 		Slots.SetNum(FMath::Max(1, UJ3DataSubsystem::Get()->GetConfigInt("storage_slots", 20)));
+		AJ3ConveyorBuilding::RelinkConveyorsNear(this);
 	}
 }
 

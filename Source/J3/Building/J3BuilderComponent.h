@@ -23,9 +23,9 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_PlaceBuilding(FName BuildingId, FVector Location, float YawDeg, bool bGrid);
 
-	// 컨베이어: 시작점·끝점 조준 (서버가 같은 판정으로 곡선을 정한다)
+	// 컨베이어: 시작점·끝점 조준과 바닥 끝 방향 (서버가 같은 판정으로 곡선을 정한다)
 	UFUNCTION(Server, Reliable)
-	void Server_PlaceConveyor(FName BuildingId, FVector StartAim, FVector EndAim);
+	void Server_PlaceConveyor(FName BuildingId, FVector StartAim, FVector EndAim, float EndYawOffsetDeg);
 
 	UFUNCTION(Server, Reliable)
 	void Server_Demolish(AJ3BuildingBase* Building);

@@ -61,11 +61,11 @@ void UJ3BuilderComponent::Server_PlaceBuilding_Implementation(FName BuildingId, 
 }
 
 
-void UJ3BuilderComponent::Server_PlaceConveyor_Implementation(FName BuildingId, FVector StartAim, FVector EndAim)
+void UJ3BuilderComponent::Server_PlaceConveyor_Implementation(FName BuildingId, FVector StartAim, FVector EndAim, float EndYawOffsetDeg)
 {
 	// 서버 판정 → 재료 → 생성 (모양을 정한 뒤 마쳐 처음 복제부터 곡선이 들어가게 한다)
 	const UJ3BuildingSubsystem* Buildings = GetWorld()->GetSubsystem<UJ3BuildingSubsystem>();
-	const FJ3PlacementCheck Check = Buildings->CheckConveyor(BuildingId, StartAim, EndAim, GetBuilder());
+	const FJ3PlacementCheck Check = Buildings->CheckConveyor(BuildingId, StartAim, EndAim, GetBuilder(), EndYawOffsetDeg);
 	const FJ3BuildingDef* Def = UJ3DataSubsystem::Get()->GetBuilding(BuildingId);
 	UClass* ConveyorClass = Def != nullptr ? Def->BuildingClass.TryLoadClass<AJ3ConveyorBuilding>() : nullptr;
 	if (!Check.IsOk() || ConveyorClass == nullptr)

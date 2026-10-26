@@ -28,6 +28,11 @@ public:
 
 	virtual void GetStoredItems(TArray<FJ3ItemStack>& OutItems) const override;
 
+	virtual bool CanConnectConveyor() const override
+	{
+		return true;
+	}
+
 	int32 GetStoredCount() const
 	{
 		return StoredCount;

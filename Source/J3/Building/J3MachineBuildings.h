@@ -26,6 +26,7 @@ public:
 	virtual void Interact(AJ3Character* Interactor) override;
 
 	virtual void GetStoredItems(TArray<FJ3ItemStack>& OutItems) const override;
+	virtual bool CanConnectConveyor() const override;
 
 	const FJ3MachineDef* GetMachineDef() const;
 

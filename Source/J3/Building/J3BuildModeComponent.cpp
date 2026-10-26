@@ -5,6 +5,7 @@
 #include "Building/J3BuildPreview.h"
 #include "Building/J3ConveyorBuilding.h"
 #include "Building/J3ConveyorPreview.h"
+#include "Building/J3StorageBuilding.h"
 #include "Building/J3BuilderComponent.h"
 #include "Building/J3BuildingBase.h"
 #include "Building/J3BuildingSubsystem.h"
@@ -70,7 +71,11 @@ void UJ3BuildModeComponent::BeginPlacing(FName BuildingId)
 	}
 	bConveyorMode = BuildingClass->IsChildOf<AJ3ConveyorBuilding>();
 	bHasConveyorStart = false;
-	Preview->SetBuildingClass(BuildingClass);
+	YawDeg = bConveyorMode ? 0.f : YawDeg;
+	// 포트 화살표: 컨베이어를 이을 수 있는 건물(창고, conveyor=true인 기계)의 청사진에만
+	const FJ3MachineDef* MachineDef = UJ3DataSubsystem::Get()->GetMachine(BuildingId);
+	const bool bShowPorts = BuildingClass->IsChildOf<AJ3StorageBuilding>() || (MachineDef != nullptr && MachineDef->bConveyor);
+	Preview->SetBuildingClass(BuildingClass, bShowPorts);
 	Preview->SetActorHiddenInGame(bConveyorMode);
 	ConveyorPreview->SetActorHiddenInGame(!bConveyorMode);
 	SelectedBuildingId = BuildingId;
@@ -112,7 +117,7 @@ void UJ3BuildModeComponent::Confirm()
 	}
 
 
-	// 컨베이어: 첫 클릭은 시작점, 두 번째 클릭에 설치. 끝이 비어 있으면(포트·컨베이어에 안 붙음) 그 끝에서 이어 놓는다
+	// 컨베이어: 첫 클릭은 시작점, 두 번째 클릭은 끝점. 저절로 잇고 처음으로 돌아간다 (이어 놓으려면 멈춘 끝을 다시 찍는다)
 	if (bConveyorMode)
 	{
 		if (!bHasConveyorStart)
@@ -121,13 +126,9 @@ void UJ3BuildModeComponent::Confirm()
 			bHasConveyorStart = true;
 			return;
 		}
-		PlayerState->GetBuilder()->Server_PlaceConveyor(SelectedBuildingId, ConveyorStartAim, LastAimLocation);
-		FVector EndLocation;
-		FVector EndDirection;
-		bool bEndSnapped = false;
-		GetWorld()->GetSubsystem<UJ3BuildingSubsystem>()->ResolveConveyorEnd(false, LastAimLocation, GetOwner<APlayerController>()->GetPawn(), EndLocation, EndDirection, bEndSnapped);
-		bHasConveyorStart = !bEndSnapped;
-		ConveyorStartAim = LastCheck.ConveyorPath.End;
+		PlayerState->GetBuilder()->Server_PlaceConveyor(SelectedBuildingId, ConveyorStartAim, LastAimLocation, YawDeg);
+		bHasConveyorStart = false;
+		YawDeg = 0.f;
 		return;
 	}
 	PlayerState->GetBuilder()->Server_PlaceBuilding(SelectedBuildingId, LastAimLocation, YawDeg, bGrid);
@@ -330,25 +331,21 @@ void UJ3BuildModeComponent::UpdatePreview()
 
 void UJ3BuildModeComponent::UpdateConveyorPreview(const FVector& Aim)
 {
-	// 시작점 고르기 전: 붙을 점 표시 (재료·해방은 끝점을 고를 때 본다)
+	// 시작점 전에는 붙을 점 표시, 시작점 뒤에는 곡선 청사진 (판정은 서버와 같은 함수, 휠로 바닥 끝 방향을 돌린다)
 	const UJ3BuildingSubsystem* Buildings = GetWorld()->GetSubsystem<UJ3BuildingSubsystem>();
 	const AJ3Character* Builder = Cast<AJ3Character>(Cast<APlayerController>(GetOwner())->GetPawn());
+	FVector Location;
+	FVector Direction;
+	bool bDirected = false;
 	if (!bHasConveyorStart)
 	{
-		FVector Location;
-		FVector Direction;
-		bool bSnapped = false;
-		const bool bFound = Buildings->ResolveConveyorEnd(true, Aim, Builder, Location, Direction, bSnapped);
 		LastCheck = FJ3PlacementCheck();
-		LastCheck.Result = bFound ? EJ3PlacementResult::Ok : EJ3PlacementResult::NoGround;
-		ConveyorPreview->SetActorHiddenInGame(!bFound);
-		ConveyorPreview->SetMarker(Location, Direction, bFound);
+		LastCheck.Result = Buildings->ResolveConveyorEnd(true, Aim, Builder, Location, Direction, bDirected);
+		ConveyorPreview->SetActorHiddenInGame(LastCheck.Result == EJ3PlacementResult::NoGround);
+		ConveyorPreview->SetMarkers({ Location }, LastCheck.IsOk());
 		return;
 	}
-
-
-	// 끝점 고르는 중: 서버와 같은 판정으로 곡선과 색
-	LastCheck = Buildings->CheckConveyor(SelectedBuildingId, ConveyorStartAim, Aim, Builder);
+	LastCheck = Buildings->CheckConveyor(SelectedBuildingId, ConveyorStartAim, Aim, Builder, YawDeg);
 	const bool bHasPath = !LastCheck.ConveyorPath.Start.Equals(LastCheck.ConveyorPath.End);
 	ConveyorPreview->SetActorHiddenInGame(!bHasPath);
 	if (bHasPath)

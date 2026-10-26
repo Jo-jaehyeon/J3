@@ -3,6 +3,8 @@
 #include "Building/J3ConveyorBuilding.h"
 
 #include "Building/J3BuildingSubsystem.h"
+#include "Building/J3MachineBuildings.h"
+#include "Building/J3StorageBuilding.h"
 #include "Components/BoxComponent.h"
 #include "Data/J3DataSubsystem.h"
 #include "Engine/World.h"
@@ -103,9 +105,41 @@ void AJ3ConveyorBuilding::LinkNeighbors()
 	const UJ3BuildingSubsystem* Buildings = GetWorld()->GetSubsystem<UJ3BuildingSubsystem>();
 	const FJ3ConveyorPath Path = GetPath();
 	const float SearchCm = UJ3DataSubsystem::Get()->GetConfigFloat("conveyor_max_length_cm", 3000.f) + LinkToleranceCm;
-	for (const AJ3BuildingBase* Other : Buildings->FindBuildingsInBox(FBox(Path.Start - FVector(SearchCm), Path.Start + FVector(SearchCm))))
+	for (AJ3BuildingBase* Other : Buildings->FindBuildingsInBox(FBox(Path.Start - FVector(SearchCm), Path.Start + FVector(SearchCm))))
 	{
+		// 기계·창고: 시작이 출력 포트면 기계가 여기로 내보내고, 끝이 입력 포트면 여기서 받는다
 		const AJ3ConveyorBuilding* Conveyor = Cast<AJ3ConveyorBuilding>(Other);
+		if (Conveyor == nullptr && Other->CanConnectConveyor())
+		{
+			TArray<FJ3PortInfo> Ports;
+			Other->GetPorts(Ports);
+			for (const FJ3PortInfo& Port : Ports)
+			{
+				const FVector PortLocation = Port.Transform.GetLocation();
+				AJ3MachineBuilding* Machine = Cast<AJ3MachineBuilding>(Other);
+				AJ3StorageBuilding* Storage = Cast<AJ3StorageBuilding>(Other);
+				if (Port.Kind != EJ3PortKind::Item)
+				{
+					continue;
+				}
+				if (Port.Direction == EJ3PortDirection::Out && Machine != nullptr && FVector::Dist(PortLocation, Path.Start) <= LinkToleranceCm)
+				{
+					Sim->SetMachineOutput(Machine->GetMachineId(), SegmentId);
+				}
+				if (Port.Direction == EJ3PortDirection::In && FVector::Dist(PortLocation, Path.End) <= LinkToleranceCm)
+				{
+					if (Machine != nullptr)
+					{
+						Sim->SetSegmentSinkMachine(SegmentId, Machine->GetMachineId());
+					}
+					else if (Storage != nullptr)
+					{
+						Sim->SetSegmentSinkStorage(SegmentId, Storage);
+					}
+				}
+			}
+			continue;
+		}
 		if (Conveyor == nullptr || Conveyor == this || Conveyor->GetSegmentId() == INDEX_NONE)
 		{
 			continue;
@@ -136,9 +170,27 @@ void AJ3ConveyorBuilding::EndPlay(const EEndPlayReason::Type EndPlayReason)
 				Sim->SetSegmentNext(Segment.Id, INDEX_NONE);
 			}
 		}
+		Sim->ClearSegmentLinks(SegmentId);
 		Sim->RemoveSegment(SegmentId);
 	}
 	Super::EndPlay(EndPlayReason);
+}
+
+
+void AJ3ConveyorBuilding::RelinkConveyorsNear(const AJ3BuildingBase* Building)
+{
+	// 컨베이어는 시작점에 등록되어 있어 최대 길이만큼 넓게 찾는다
+	const UJ3BuildingSubsystem* Buildings = Building->GetWorld()->GetSubsystem<UJ3BuildingSubsystem>();
+	const float SearchCm = UJ3DataSubsystem::Get()->GetConfigFloat("conveyor_max_length_cm", 3000.f) + Building->GetFootprintHalfExtent().GetMax();
+	const FVector Center = Building->GetActorLocation();
+	for (AJ3BuildingBase* Other : Buildings->FindBuildingsInBox(FBox(Center - FVector(SearchCm), Center + FVector(SearchCm))))
+	{
+		AJ3ConveyorBuilding* Conveyor = Cast<AJ3ConveyorBuilding>(Other);
+		if (Conveyor != nullptr && Conveyor->GetSegmentId() != INDEX_NONE)
+		{
+			Conveyor->LinkNeighbors();
+		}
+	}
 }
 
 

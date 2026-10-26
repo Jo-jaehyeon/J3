@@ -35,6 +35,12 @@ namespace J3Building
 			return LOCTEXT("ConveyorTooLong", "컨베이어가 너무 깁니다");
 		case EJ3PlacementResult::ConveyorTooSharp:
 			return LOCTEXT("ConveyorTooSharp", "너무 급하게 꺾입니다");
+		case EJ3PlacementResult::PortInUse:
+			return LOCTEXT("PortInUse", "이미 컨베이어가 연결된 포트입니다");
+		case EJ3PlacementResult::NeedsOutputPort:
+			return LOCTEXT("NeedsOutputPort", "기계의 출구(나가는 포트)를 조준하세요");
+		case EJ3PlacementResult::NeedsInputPort:
+			return LOCTEXT("NeedsInputPort", "기계·창고의 입구(들어오는 포트)를 조준하세요");
 		case EJ3PlacementResult::TooSteep:
 			return LOCTEXT("TooSteep", "경사가 너무 급합니다 (토대 위에 설치하세요)");
 		case EJ3PlacementResult::Overlapping:

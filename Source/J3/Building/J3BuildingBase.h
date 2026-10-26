@@ -47,6 +47,12 @@ public:
 	// 건물 클래스에 정의된 포트 (원점 기준, 미리보기·설치 판정용). 블루프린트에서 붙인 포트도 포함한다.
 	static void GetClassPorts(TSubclassOf<AJ3BuildingBase> BuildingClass, TArray<FJ3PortInfo>& OutPorts);
 
+	// 포트에 컨베이어를 이을 수 있는지 (창고, machines.csv conveyor=true인 기계. 간이 채굴기·간이 제련로·자리 표시 건물은 불가)
+	virtual bool CanConnectConveyor() const
+	{
+		return false;
+	}
+
 	// 안에 든 아이템 (기계 칸, 창고). 철거하면 건설 재료와 함께 돌려준다
 	virtual void GetStoredItems(TArray<FJ3ItemStack>& OutItems) const
 	{

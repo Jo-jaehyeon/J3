@@ -30,12 +30,13 @@ public:
 	// IgnoreActor: 미리보기 모형처럼 판정에서 빼야 할 액터
 	FJ3PlacementCheck CheckPlacement(FName BuildingId, const FVector& Location, float YawDeg, bool bGrid, const AJ3Character* Builder, const AActor* IgnoreActor = nullptr) const;
 
-	// 컨베이어: 시작점·끝점 조준으로 곡선을 정하고 판정한다 (Building_Placement 3절).
-	// 끝점은 맞는 포트(시작: 출력 포트, 끝: 입력 포트)나 비어 있는 다른 컨베이어 끝에 붙고, 없으면 조준한 바닥 위에 놓인다.
-	FJ3PlacementCheck CheckConveyor(FName BuildingId, const FVector& StartAim, const FVector& EndAim, const AJ3Character* Builder) const;
+	// 컨베이어: 두 점을 찍으면 곡선을 저절로 정하고 판정한다 (Building_Placement 3절). 점은 포트·컨베이어 끝에 붙고, 없으면 찍은 바닥에서 멈춘다.
+	// EndYawOffsetDeg: 바닥에서 멈추는 끝의 방향을 두 점을 잇는 방향에서 얼마나 돌릴지 (휠, 곡선을 자유롭게 휜다)
+	FJ3PlacementCheck CheckConveyor(FName BuildingId, const FVector& StartAim, const FVector& EndAim, const AJ3Character* Builder, float EndYawOffsetDeg = 0.f) const;
 
-	// 컨베이어 끝점 하나 정하기. bOutHasDirection: 포트·컨베이어에 붙어 방향이 정해졌다
-	bool ResolveConveyorEnd(bool bStart, const FVector& Aim, const AActor* Builder, FVector& OutLocation, FVector& OutDirection, bool& bOutHasDirection) const;
+	// 컨베이어 한쪽 끝: 조준점 근처의 출구(bStart)·입구 포트나 이어 붙일 컨베이어 끝, 없으면 찍은 바닥 위.
+	// bOutDirected: 포트·컨베이어에 붙어 방향이 정해졌다. 이미 다른 컨베이어가 붙은 점이면 PortInUse, 바닥도 없으면 NoGround
+	EJ3PlacementResult ResolveConveyorEnd(bool bStart, const FVector& Aim, const AActor* Builder, FVector& OutLocation, FVector& OutDirection, bool& bOutDirected) const;
 
 	int32 CountBuildings(FName BuildingId) const;
 

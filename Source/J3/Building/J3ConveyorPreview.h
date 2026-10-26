@@ -8,10 +8,9 @@
 
 class UInstancedStaticMeshComponent;
 class UMaterialInstanceDynamic;
-struct FJ3ConveyorPath;
 
 
-// 컨베이어 설치 미리보기 (이 PC에서만, 충돌 없음). 곡선을 짧은 상자 조각으로 그리고 파랑/빨강으로 칠한다.
+// 컨베이어 설치 청사진 (이 PC에서만, 충돌 없음). 시작점 전에는 붙을 점에 작은 표시, 시작점 뒤에는 곡선을 조각으로 그려 파랑/빨강으로 칠한다.
 UCLASS(NotPlaceable, Transient)
 class J3_API AJ3ConveyorPreview : public AActor
 {
@@ -20,10 +19,10 @@ class J3_API AJ3ConveyorPreview : public AActor
 public:
 	AJ3ConveyorPreview();
 
-	void SetPath(const FJ3ConveyorPath& Path, bool bValid);
+	// 포트 자리 표시 (파랑: 이을 수 있음, 빨강: 못 이음)
+	void SetMarkers(const TArray<FVector>& Locations, bool bValid);
 
-	// 시작점을 고르기 전: 붙을 점에 작은 표시만
-	void SetMarker(const FVector& Location, const FVector& Direction, bool bValid);
+	void SetPath(const struct FJ3ConveyorPath& Path, bool bValid);
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "J3|Building")
@@ -38,7 +37,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Style")
 	FLinearColor InvalidColor = FLinearColor(1.f, 0.15f, 0.1f);
 
-	// 조각 길이와 단면 배율 (기본 큐브 100cm 기준, 벨트 표시와 비슷하게)
+	// 표시 크기 (기본 큐브 100cm 기준 배율)
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Style")
+	FVector MarkerScale = FVector(0.3f);
+
+	// 곡선 조각 길이와 단면 배율 (벨트 표시와 비슷하게)
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Style")
 	float PieceLengthCm = 50.f;
 

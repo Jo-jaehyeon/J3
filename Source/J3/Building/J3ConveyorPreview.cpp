@@ -42,6 +42,19 @@ void AJ3ConveyorPreview::SetColor(bool bValid)
 }
 
 
+void AJ3ConveyorPreview::SetMarkers(const TArray<FVector>& Locations, bool bValid)
+{
+	TArray<FTransform> Transforms;
+	for (const FVector& Location : Locations)
+	{
+		Transforms.Emplace(FQuat::Identity, Location, MarkerScale);
+	}
+	Pieces->ClearInstances();
+	Pieces->AddInstances(Transforms, false, true);
+	SetColor(bValid);
+}
+
+
 void AJ3ConveyorPreview::SetPath(const FJ3ConveyorPath& Path, bool bValid)
 {
 	// 곡선을 조각으로 나눠 조각마다 상자 하나
@@ -56,13 +69,5 @@ void AJ3ConveyorPreview::SetPath(const FJ3ConveyorPath& Path, bool bValid)
 	}
 	Pieces->ClearInstances();
 	Pieces->AddInstances(Transforms, false, true);
-	SetColor(bValid);
-}
-
-
-void AJ3ConveyorPreview::SetMarker(const FVector& Location, const FVector& Direction, bool bValid)
-{
-	Pieces->ClearInstances();
-	Pieces->AddInstance(FTransform(Direction.Rotation(), Location, PieceScale * 0.5f), true);
 	SetColor(bValid);
 }
