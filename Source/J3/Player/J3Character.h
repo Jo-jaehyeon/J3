@@ -67,6 +67,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputAction> LookAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> JumpAction;
+
 private:
 	// OnRep_PlayerState가 여러 번 와도 태그 이벤트를 한 번만 등록하기 위해
 	FDelegateHandle DeadTagHandle;

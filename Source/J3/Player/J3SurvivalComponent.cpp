@@ -117,15 +117,30 @@ void UJ3SurvivalComponent::TickSurvival()
 	const float NextThirst = Attributes->GetThirst() + ThirstDelta;
 
 
-	// HP: 둘 중 하나라도 0이면 감소, 둘 다 기준 이상이면 자연 회복.
-	// TODO(기획-미결정): 0이 된 뒤 유예 시간, 둘 다 0일 때 감소량(지금은 한 배), 회복 기준·속도는 config 임시값.
+	// HP 감소: 둘 중 하나라도 0이 된 뒤 유예 시간이 지나면 감소, 둘 다 0이면 배수 적용.
+	// 유예가 틱 중간에 끝나면 넘은 시간만큼만 깎아 틱 간격과 상관없이 같은 결과가 나오게 한다.
 	float HealthDelta = 0.f;
-	const float RegenRatio = Data->GetConfigFloat("regen_threshold_ratio", 0.5f);
-	if (NextHunger <= 0.f || NextThirst <= 0.f)
+	const bool bHungerEmpty = NextHunger <= 0.f;
+	const bool bThirstEmpty = NextThirst <= 0.f;
+	if (bHungerEmpty || bThirstEmpty)
 	{
-		HealthDelta = -Data->GetConfigFloat("starve_hp_loss_per_sec", 1.f) * Seconds;
+		const float GraceSec = Data->GetConfigFloat("starve_grace_sec", 0.f);
+		const float PrevElapsed = StarvingElapsedSec;
+		StarvingElapsedSec += Seconds;
+		const float LossSec = FMath::Clamp(StarvingElapsedSec - FMath::Max(GraceSec, PrevElapsed), 0.f, Seconds);
+		const float Multiplier = bHungerEmpty && bThirstEmpty ? Data->GetConfigFloat("starve_both_multiplier", 1.f) : 1.f;
+		HealthDelta = -Data->GetConfigFloat("starve_hp_loss_per_sec", 1.f) * Multiplier * LossSec;
 	}
-	else if (NextHunger >= Attributes->GetMaxHunger() * RegenRatio && NextThirst >= Attributes->GetMaxThirst() * RegenRatio)
+	else
+	{
+		StarvingElapsedSec = 0.f;
+	}
+
+
+	// 자연 회복: 둘 다 기준 이상일 때
+	// TODO(기획-미결정): 회복 기준(regen_threshold_ratio)은 config 임시값
+	const float RegenRatio = Data->GetConfigFloat("regen_threshold_ratio", 0.5f);
+	if (NextHunger >= Attributes->GetMaxHunger() * RegenRatio && NextThirst >= Attributes->GetMaxThirst() * RegenRatio)
 	{
 		HealthDelta = Data->GetConfigFloat("regen_hp_per_sec", 0.f) * Seconds;
 	}

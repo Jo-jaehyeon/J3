@@ -36,4 +36,7 @@ private:
 	FTimerHandle TickTimer;
 
 	float TickIntervalSec = 1.f;
+
+	// 공복·갈증이 0인 상태가 이어진 시간 (유예 판정용, 서버 전용)
+	float StarvingElapsedSec = 0.f;
 };

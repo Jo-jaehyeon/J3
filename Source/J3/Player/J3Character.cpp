@@ -58,6 +58,12 @@ void AJ3Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	{
 		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &AJ3Character::Look);
 	}
+	if (JumpAction != nullptr)
+	{
+		// 점프 높이·체공은 CharacterMovement 설정(BP_J3Character)에서 조정한다
+		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+	}
 }
 
 
