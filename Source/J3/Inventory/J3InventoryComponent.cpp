@@ -3,9 +3,6 @@
 #include "Inventory/J3InventoryComponent.h"
 
 #include "Data/J3DataSubsystem.h"
-#include "Engine/Engine.h"
-#include "GameFramework/PlayerController.h"
-#include "GameFramework/PlayerState.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/J3InventoryLogic.h"
 #include "Net/UnrealNetwork.h"
@@ -262,7 +259,6 @@ void UJ3InventoryComponent::NotifyChanged()
 {
 	RefreshHeldItem();
 	OnInventoryChanged.Broadcast();
-	PrintDebugView();
 }
 
 
@@ -286,7 +282,6 @@ void UJ3InventoryComponent::RefreshHeldItem()
 void UJ3InventoryComponent::OnRep_Inventory()
 {
 	OnInventoryChanged.Broadcast();
-	PrintDebugView();
 }
 
 
@@ -327,50 +322,5 @@ void UJ3InventoryComponent::ApplyDebugGiveOnSpawn()
 	{
 		HeldEquipIndex = 0;
 	}
-#endif
-}
-
-
-void UJ3InventoryComponent::ToggleDebugView()
-{
-	bDebugViewVisible = !bDebugViewVisible;
-	PrintDebugView();
-}
-
-
-void UJ3InventoryComponent::PrintDebugView() const
-{
-#if !UE_BUILD_SHIPPING
-	// 이 PC에서 조작하는 플레이어의 인벤토리만 보여 준다
-	const APlayerState* PlayerState = Cast<APlayerState>(GetOwner());
-	const APlayerController* Controller = PlayerState != nullptr ? PlayerState->GetPlayerController() : nullptr;
-	if (GEngine == nullptr || Controller == nullptr || !Controller->IsLocalController())
-	{
-		return;
-	}
-	const uint64 MessageKey = 0x4A30000 + GetUniqueID();
-	if (!bDebugViewVisible)
-	{
-		GEngine->RemoveOnScreenDebugMessage(MessageKey);
-		return;
-	}
-
-
-	// 장비 4칸(손에 든 칸 표시) + 인벤토리
-	auto Describe = [](const FJ3ItemStack& Stack)
-	{
-		return Stack.IsEmpty() ? FString(TEXT("-")) : FString::Printf(TEXT("%s x%d"), *Stack.ItemId.ToString(), Stack.Count);
-	};
-	FString Text = FString::Printf(TEXT("[%s] 손: %s\n장비: "), *PlayerState->GetPlayerName(), HeldItemId.IsNone() ? TEXT("맨손") : *HeldItemId.ToString());
-	for (int32 Index = 0; Index < Equipment.Num(); ++Index)
-	{
-		Text += FString::Printf(TEXT("%s%d:%s  "), Index == HeldEquipIndex ? TEXT(">") : TEXT(""), Index + 1, *Describe(Equipment[Index]));
-	}
-	Text += TEXT("\n가방: ");
-	for (int32 Index = 0; Index < Slots.Num(); ++Index)
-	{
-		Text += FString::Printf(TEXT("%d:%s  "), Index, *Describe(Slots[Index]));
-	}
-	GEngine->AddOnScreenDebugMessage(MessageKey, 1000.f, FColor::Cyan, Text);
 #endif
 }

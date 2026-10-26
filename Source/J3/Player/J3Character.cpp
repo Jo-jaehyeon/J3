@@ -7,6 +7,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Core/J3PlayerController.h"
 #include "Core/J3PlayerState.h"
 #include "Data/J3DataSubsystem.h"
 #include "Engine/World.h"
@@ -182,10 +183,9 @@ void AJ3Character::CycleEquipment(const FInputActionValue& Value)
 
 void AJ3Character::ToggleInventory()
 {
-	// TODO(단계 1 UI): 인벤토리 화면(UMG)을 연다. 지금은 화면에 내용만 띄운다.
-	if (UJ3InventoryComponent* Inventory = GetInventory())
+	if (AJ3PlayerController* J3Controller = Cast<AJ3PlayerController>(GetController()))
 	{
-		Inventory->ToggleDebugView();
+		J3Controller->ToggleInventoryScreen();
 	}
 }
 

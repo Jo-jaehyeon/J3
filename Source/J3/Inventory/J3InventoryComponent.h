@@ -87,10 +87,6 @@ public:
 	// 손에 든 장비가 바뀜 (서버: 무기 능력 교체, 모두: 손에 든 모델 표시)
 	FJ3OnHeldItemChanged OnHeldItemChanged;
 
-
-	// 개발용: 화면에 인벤토리 내용을 띄운다 (TODO(단계 1 UI): 인벤토리 UI로 교체)
-	void ToggleDebugView();
-
 protected:
 	virtual void BeginPlay() override;
 
@@ -99,7 +95,6 @@ private:
 	void NotifyChanged();
 	void RefreshHeldItem();
 	void ApplyDebugGiveOnSpawn();
-	void PrintDebugView() const;
 
 	UFUNCTION()
 	void OnRep_Inventory();
@@ -121,6 +116,4 @@ private:
 	// 손에 든 아이템은 다른 플레이어 화면에도 보여야 한다
 	UPROPERTY(VisibleInstanceOnly, ReplicatedUsing = OnRep_HeldItem, Category = "J3|Inventory")
 	FName HeldItemId;
-
-	bool bDebugViewVisible = false;
 };

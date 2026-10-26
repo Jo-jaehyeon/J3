@@ -7,6 +7,8 @@
 #include "J3PlayerController.generated.h"
 
 class UInputMappingContext;
+class UJ3HUDWidget;
+class UJ3InventoryWidget;
 
 
 // 플레이어 컨트롤러. 키 배치(입력 매핑)는 폰이 바뀌어도 유지되도록 여기서 등록한다.
@@ -20,9 +22,8 @@ public:
 	UFUNCTION(Exec)
 	void J3Give(FName ItemId, int32 Count = 1);
 
-	// 개발용 치트 (콘솔: J3Equip 0) 인벤토리 칸 번호의 장비를 장착한다. TODO(단계 1 UI): 인벤토리 UI 클릭으로 대체
-	UFUNCTION(Exec)
-	void J3Equip(int32 SlotIndex);
+	// I키: 인벤토리 화면 열기/닫기. 열려 있는 동안 마우스 커서가 나오고 시점 회전은 멈춘다.
+	void ToggleInventoryScreen();
 
 protected:
 	UFUNCTION(Server, Reliable)
@@ -33,4 +34,18 @@ protected:
 	// 기본 키 배치 (Dev_Handoff 6절). 에셋은 BP_J3PlayerController에서 지정한다.
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
+
+	// UI 위젯 클래스 (블루프린트에서 겉모습을 바꾼 하위 클래스로 교체 가능)
+	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
+	TSubclassOf<UJ3HUDWidget> HUDWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
+	TSubclassOf<UJ3InventoryWidget> InventoryWidgetClass;
+
+private:
+	UPROPERTY()
+	TObjectPtr<UJ3HUDWidget> HUDWidget;
+
+	UPROPERTY()
+	TObjectPtr<UJ3InventoryWidget> InventoryWidget;
 };
