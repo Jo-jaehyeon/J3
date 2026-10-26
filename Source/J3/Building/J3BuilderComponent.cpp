@@ -29,12 +29,12 @@ AJ3Character* UJ3BuilderComponent::GetBuilder() const
 }
 
 
-void UJ3BuilderComponent::Server_PlaceBuilding_Implementation(FName BuildingId, FVector Location, float YawDeg)
+void UJ3BuilderComponent::Server_PlaceBuilding_Implementation(FName BuildingId, FVector Location, float YawDeg, bool bGrid)
 {
 	// 서버 판정 (클라이언트 미리보기와 같은 함수, 결과는 서버 것만 확정)
 	AJ3Character* Builder = GetBuilder();
 	const UJ3BuildingSubsystem* Buildings = GetWorld()->GetSubsystem<UJ3BuildingSubsystem>();
-	const FJ3PlacementCheck Check = Buildings->CheckPlacement(BuildingId, Location, YawDeg, Builder);
+	const FJ3PlacementCheck Check = Buildings->CheckPlacement(BuildingId, Location, YawDeg, bGrid, Builder);
 	if (!Check.IsOk())
 	{
 		UE_LOG(LogJ3Building, Display, TEXT("설치 거부 %s: %s"), *BuildingId.ToString(), *J3Building::GetResultText(Check.Result).ToString());

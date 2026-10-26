@@ -21,7 +21,7 @@ public:
 	UJ3BuilderComponent();
 
 	UFUNCTION(Server, Reliable)
-	void Server_PlaceBuilding(FName BuildingId, FVector Location, float YawDeg);
+	void Server_PlaceBuilding(FName BuildingId, FVector Location, float YawDeg, bool bGrid);
 
 	UFUNCTION(Server, Reliable)
 	void Server_Demolish(AJ3BuildingBase* Building);

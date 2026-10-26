@@ -82,6 +82,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputAction> PickBuildingAction;
 
+	// 보조 그리드 켜기/끄기 (건설 모드)
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> ToggleGridAction;
+
 	// 숫자키 1~0 (값 1~10, 입력 매핑의 Scalar로 구분)
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputAction> HotbarAction;
@@ -118,6 +122,7 @@ private:
 	void OnConfirm();
 	void OnCancel();
 	void OnPickBuilding();
+	void OnToggleGrid();
 	void OnHotbar(const FInputActionValue& Value);
 
 	// 화면(인벤토리·제작)이 하나라도 열려 있으면 커서를 보이고 시점 회전을 멈춘다

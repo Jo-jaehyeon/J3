@@ -52,6 +52,17 @@ public:
 	// 가운데 클릭: 조준한 건물과 같은 건물·방향으로 시작
 	void PickAimedBuilding();
 
+	// 보조 그리드 켜기/끄기 (Building_Placement 2.1, 켜면 위치는 격자, 회전은 회전 단위에 맞춘다)
+	void ToggleGrid()
+	{
+		bGrid = !bGrid;
+	}
+
+	bool IsGridEnabled() const
+	{
+		return bGrid;
+	}
+
 
 	// 숫자키 단축 칸 (1~0 → 0~9)
 	void AssignHotbar(int32 Index, FName BuildingId);
@@ -68,6 +79,7 @@ private:
 
 	FName SelectedBuildingId;
 	float YawDeg = 0.f;
+	bool bGrid = false;
 	FJ3PlacementCheck LastCheck;
 	FVector LastAimLocation = FVector::ZeroVector;
 

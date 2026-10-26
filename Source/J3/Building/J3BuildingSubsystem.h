@@ -25,9 +25,10 @@ public:
 	void UnregisterBuilding(AJ3BuildingBase* Building);
 
 
-	// 이 위치·방향에 이 건물을 지을 수 있는지. Location은 조준한 지점(바닥 근처), 실제 높이는 판정이 찾는다.
+	// 이 위치·방향에 이 건물을 지을 수 있는지. Location은 조준한 지점(바닥 근처), 실제 위치는 판정이 정한다:
+	// 보조 그리드가 켜져 있으면 같은 토대 옆 가장자리에 붙이거나(스냅) 격자에 맞추고, 끄면 조준한 바닥에 그대로 놓는다.
 	// IgnoreActor: 미리보기 모형처럼 판정에서 빼야 할 액터
-	FJ3PlacementCheck CheckPlacement(FName BuildingId, const FVector& Location, float YawDeg, const AJ3Character* Builder, const AActor* IgnoreActor = nullptr) const;
+	FJ3PlacementCheck CheckPlacement(FName BuildingId, const FVector& Location, float YawDeg, bool bGrid, const AJ3Character* Builder, const AActor* IgnoreActor = nullptr) const;
 
 	int32 CountBuildings(FName BuildingId) const;
 
@@ -44,6 +45,14 @@ public:
 
 private:
 	FIntPoint GetCell(const FVector& Location) const;
+
+	// 최종 위치 정하기. 바닥이 없으면 false. bOutSupported: 이웃 토대에 붙어 지형 경사와 상관없이 놓였다.
+	bool ResolveTransform(FName BuildingId, const FVector& HalfExtent, const FVector& Location, float YawDeg, bool bGrid, const AActor* Builder, const AActor* IgnoreActor, FTransform& OutTransform, FVector& OutGroundNormal, const AActor*& OutGroundActor, bool& bOutSupported) const;
+
+	// 같은 종류의 구조물(토대) 옆 칸에 붙인다 (Building_Placement 2.1 스냅)
+	bool TrySnapToNeighbor(FName BuildingId, const FVector& HalfExtent, const FVector& Location, float YawDeg, FTransform& OutTransform) const;
+
+	bool TraceGround(const FVector& Location, const AActor* Builder, const AActor* IgnoreActor, FHitResult& OutHit) const;
 
 	// 서버·클라이언트 각자 가진 건물 목록과 격자 칸 인덱스 (플레이어에게 보이지 않는 그리드 해시)
 	TArray<TWeakObjectPtr<AJ3BuildingBase>> Buildings;

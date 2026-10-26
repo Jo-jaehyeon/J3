@@ -169,8 +169,9 @@ void UJ3HUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	{
 		const FJ3BuildingDef* Def = UJ3DataSubsystem::Get()->GetBuilding(BuildMode->GetSelectedBuildingId());
 		const FJ3PlacementCheck& Check = BuildMode->GetLastCheck();
-		BuildModeText->SetText(FText::Format(LOCTEXT("BuildMode", "{0}\n{1}\n좌클릭: 설치   휠: 회전   가운데 클릭: 같은 건물   우클릭·Esc: 취소"),
-			Def != nullptr ? Def->DisplayName : FText::GetEmpty(), J3Building::GetResultText(Check.Result)));
+		const FText GridText = BuildMode->IsGridEnabled() ? LOCTEXT("GridOn", "그리드 켜짐") : LOCTEXT("GridOff", "그리드 꺼짐");
+		BuildModeText->SetText(FText::Format(LOCTEXT("BuildMode", "{0}   ({2})\n{1}\n좌클릭: 설치   휠: 회전   T: 그리드   가운데 클릭: 같은 건물   우클릭·Esc: 취소"),
+			Def != nullptr ? Def->DisplayName : FText::GetEmpty(), J3Building::GetResultText(Check.Result), GridText));
 		BuildModeText->SetColorAndOpacity(Check.IsOk() ? FSlateColor(FLinearColor::White) : FSlateColor(FLinearColor(1.f, 0.35f, 0.3f)));
 		BuildModeText->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}

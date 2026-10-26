@@ -51,6 +51,10 @@ void AJ3PlayerController::SetupInputComponent()
 	{
 		EnhancedInput->BindAction(PickBuildingAction, ETriggerEvent::Started, this, &AJ3PlayerController::OnPickBuilding);
 	}
+	if (ToggleGridAction != nullptr)
+	{
+		EnhancedInput->BindAction(ToggleGridAction, ETriggerEvent::Started, this, &AJ3PlayerController::OnToggleGrid);
+	}
 	if (HotbarAction != nullptr)
 	{
 		EnhancedInput->BindAction(HotbarAction, ETriggerEvent::Started, this, &AJ3PlayerController::OnHotbar);
@@ -74,6 +78,13 @@ void AJ3PlayerController::OnCancel()
 void AJ3PlayerController::OnPickBuilding()
 {
 	BuildMode->PickAimedBuilding();
+}
+
+
+void AJ3PlayerController::OnToggleGrid()
+{
+	BuildMode->ToggleGrid();
+	UE_LOG(LogTemp, Display, TEXT("보조 그리드: %s"), BuildMode->IsGridEnabled() ? TEXT("켜짐") : TEXT("꺼짐"));
 }
 
 
@@ -287,7 +298,7 @@ void AJ3PlayerController::J3Build(FName BuildingId, float YawDeg)
 	const AJ3PlayerState* J3PlayerState = GetPlayerState<AJ3PlayerState>();
 	if (J3PlayerState != nullptr && TraceFromView(Hit))
 	{
-		J3PlayerState->GetBuilder()->Server_PlaceBuilding(BuildingId, Hit.ImpactPoint, YawDeg);
+		J3PlayerState->GetBuilder()->Server_PlaceBuilding(BuildingId, Hit.ImpactPoint, YawDeg, false);
 	}
 #endif
 }

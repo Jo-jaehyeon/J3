@@ -91,7 +91,7 @@ void UJ3BuildModeComponent::Confirm()
 	{
 		return;
 	}
-	PlayerState->GetBuilder()->Server_PlaceBuilding(SelectedBuildingId, LastAimLocation, YawDeg);
+	PlayerState->GetBuilder()->Server_PlaceBuilding(SelectedBuildingId, LastAimLocation, YawDeg, bGrid);
 }
 
 
@@ -153,7 +153,7 @@ void UJ3BuildModeComponent::UpdatePreview()
 	// 서버와 같은 판정으로 위치와 색을 정한다 (바닥을 못 찾으면 조준점에 그대로 둔다)
 	const UJ3BuildingSubsystem* Buildings = GetWorld()->GetSubsystem<UJ3BuildingSubsystem>();
 	const AJ3Character* Builder = Cast<AJ3Character>(Cast<APlayerController>(GetOwner())->GetPawn());
-	LastCheck = Buildings->CheckPlacement(SelectedBuildingId, LastAimLocation, YawDeg, Builder, Preview);
+	LastCheck = Buildings->CheckPlacement(SelectedBuildingId, LastAimLocation, YawDeg, bGrid, Builder, Preview);
 	const bool bHasTransform = LastCheck.Result != EJ3PlacementResult::NoGround && LastCheck.Result != EJ3PlacementResult::UnknownBuilding && !LastCheck.Transform.Equals(FTransform::Identity);
 	const FTransform Transform = bHasTransform ? LastCheck.Transform : FTransform(FRotator(0.f, YawDeg, 0.f), LastAimLocation);
 	Preview->SetActorTransform(Transform);
