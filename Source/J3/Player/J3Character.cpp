@@ -8,6 +8,9 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Core/J3PlayerState.h"
+#include "Data/J3DataSubsystem.h"
+#include "Engine/World.h"
+#include "Interaction/J3Interactable.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputActionValue.h"
@@ -68,6 +71,10 @@ void AJ3Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	if (CycleEquipmentAction != nullptr)
 	{
 		EnhancedInput->BindAction(CycleEquipmentAction, ETriggerEvent::Triggered, this, &AJ3Character::CycleEquipment);
+	}
+	if (InteractAction != nullptr)
+	{
+		EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &AJ3Character::Interact);
 	}
 	if (AttackAction != nullptr)
 	{
@@ -206,4 +213,76 @@ void AJ3Character::Attack()
 	{
 		AbilitySystem->TryActivateAbility(Handle);
 	}
+}
+
+
+AActor* AJ3Character::FindInteractTarget() const
+{
+	// 조준 방향으로 판정한다. 눈높이가 1m보다 높아 발밑 물건에도 닿도록, 선 길이는 거리 + 눈높이로 한다.
+	const float RangeCm = UJ3DataSubsystem::Get()->GetConfigFloat("interact_range_cm", 100.f);
+	const FVector Start = FirstPersonCamera->GetComponentLocation();
+	const float EyeAboveFeetCm = Start.Z - (GetActorLocation().Z - GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	const FVector End = Start + FirstPersonCamera->GetForwardVector() * (RangeCm + EyeAboveFeetCm);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(J3InteractTrace), false, this);
+	FHitResult Hit;
+	if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+	{
+		return nullptr;
+	}
+
+
+	// 상호작용 가능하고 몸에서 거리 안인 대상만
+	AActor* Target = Hit.GetActor();
+	const IJ3Interactable* Interactable = Cast<IJ3Interactable>(Target);
+	if (Interactable == nullptr || !Interactable->CanInteract(this) || GetBodyDistanceTo(Target) > RangeCm)
+	{
+		return nullptr;
+	}
+	return Target;
+}
+
+
+void AJ3Character::Interact()
+{
+	AActor* Target = FindInteractTarget();
+	if (Target != nullptr)
+	{
+		Server_Interact(Target);
+	}
+}
+
+
+void AJ3Character::Server_Interact_Implementation(AActor* Target)
+{
+	// 서버 확인: 상호작용 대상인지, 지금 가능한지, 거리 안인지 (클라이언트·서버 위치 차이만큼 여유)
+	IJ3Interactable* Interactable = Cast<IJ3Interactable>(Target);
+	if (Interactable == nullptr || !Interactable->CanInteract(this))
+	{
+		return;
+	}
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	const float AllowedCm = Data->GetConfigFloat("interact_range_cm", 100.f) + Data->GetConfigFloat("interact_tolerance_cm", 0.f);
+	if (GetBodyDistanceTo(Target) > AllowedCm)
+	{
+		return;
+	}
+	Interactable->Interact(this);
+}
+
+
+float AJ3Character::GetBodyDistanceTo(const AActor* Target) const
+{
+	// 대상 표면에서 캡슐 중심선에 가장 가까운 점을 구하고, 캡슐 반지름을 뺀다
+	const UCapsuleComponent* Capsule = GetCapsuleComponent();
+	const float Radius = Capsule->GetScaledCapsuleRadius();
+	const FVector Axis = FVector(0.f, 0.f, Capsule->GetScaledCapsuleHalfHeight() - Radius);
+	const FVector Center = Capsule->GetComponentLocation();
+	const UPrimitiveComponent* TargetPrimitive = Cast<UPrimitiveComponent>(Target->GetRootComponent());
+	FVector TargetPoint = Target->GetActorLocation();
+	if (TargetPrimitive != nullptr)
+	{
+		TargetPrimitive->GetClosestPointOnCollision(Center, TargetPoint);
+	}
+	const FVector OnAxis = FMath::ClosestPointOnSegment(TargetPoint, Center - Axis, Center + Axis);
+	return FMath::Max(0.f, FVector::Dist(TargetPoint, OnAxis) - Radius);
 }

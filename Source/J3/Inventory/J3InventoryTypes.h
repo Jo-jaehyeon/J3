@@ -12,10 +12,10 @@ struct FJ3ItemStack
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category = "J3|Inventory")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "J3|Inventory")
 	FName ItemId;
 
-	UPROPERTY(BlueprintReadOnly, Category = "J3|Inventory")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "J3|Inventory")
 	int32 Count = 0;
 
 	bool IsEmpty() const

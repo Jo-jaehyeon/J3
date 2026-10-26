@@ -50,6 +50,16 @@ protected:
 	void ToggleInventory();
 	void Attack();
 
+	// G키: 조준점이 가리키는 상호작용 대상을 찾아 서버에 요청한다
+	void Interact();
+	AActor* FindInteractTarget() const;
+
+	UFUNCTION(Server, Reliable)
+	void Server_Interact(AActor* Target);
+
+	// 플레이어 몸(캡슐)에서 대상 표면까지 거리. G키 거리 1m는 이 거리로 잰다.
+	float GetBodyDistanceTo(const AActor* Target) const;
+
 
 	// 시점
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "J3|Camera")
@@ -82,6 +92,10 @@ protected:
 	// 우클릭: 손에 든 무기의 공격 능력 (무기와 상관없이 같은 버튼)
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
 	TObjectPtr<UInputAction> AttackAction;
+
+	// G: 상호작용 (줍기, 채취, 건물, AI 모듈)
+	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
+	TObjectPtr<UInputAction> InteractAction;
 
 	// I: 인벤토리 열기
 	UPROPERTY(EditDefaultsOnly, Category = "J3|Input")
