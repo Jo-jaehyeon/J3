@@ -13,6 +13,9 @@ class UJ3BuildModeComponent;
 class UJ3CraftingWidget;
 class UJ3MachineWidget;
 class AJ3MachineBuilding;
+class AJ3StorageBuilding;
+class UJ3StorageWidget;
+struct FJ3ItemStack;
 struct FInputActionValue;
 class UJ3HUDWidget;
 class UJ3InventoryWidget;
@@ -62,6 +65,15 @@ public:
 	void Client_OpenMachineScreen(AJ3MachineBuilding* Machine);
 
 	void CloseMachineScreen();
+
+	// 창고 화면 (서버가 내용을 보내며 연다, 보는 동안 바뀌면 다시 보낸다)
+	UFUNCTION(Client, Reliable)
+	void Client_OpenStorageScreen(AJ3StorageBuilding* Storage, const TArray<FJ3ItemStack>& Slots);
+
+	UFUNCTION(Client, Reliable)
+	void Client_UpdateStorage(AJ3StorageBuilding* Storage, const TArray<FJ3ItemStack>& Slots);
+
+	void CloseStorageScreen();
 
 protected:
 	UFUNCTION(Server, Reliable)
@@ -121,6 +133,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
 	TSubclassOf<UJ3MachineWidget> MachineWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "J3|UI")
+	TSubclassOf<UJ3StorageWidget> StorageWidgetClass;
+
 private:
 	UPROPERTY()
 	TObjectPtr<UJ3HUDWidget> HUDWidget;
@@ -136,6 +151,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UJ3MachineWidget> MachineWidget;
+
+	UPROPERTY()
+	TObjectPtr<UJ3StorageWidget> StorageWidget;
 
 	void OnConfirm();
 	void OnConfirmReleased();

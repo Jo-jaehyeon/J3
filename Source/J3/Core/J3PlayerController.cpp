@@ -9,6 +9,9 @@
 #include "Building/J3BuildVerify.h"
 #include "Building/J3MachineBuildings.h"
 #include "UI/J3MachineWidget.h"
+#include "UI/J3StorageWidget.h"
+#include "Building/J3MachineAccessComponent.h"
+#include "Building/J3StorageBuilding.h"
 #include "Building/J3BuilderComponent.h"
 #include "Building/J3BuildingBase.h"
 #include "Core/J3PlayerState.h"
@@ -247,6 +250,49 @@ void AJ3PlayerController::CloseMachineScreen()
 }
 
 
+void AJ3PlayerController::Client_OpenStorageScreen_Implementation(AJ3StorageBuilding* Storage, const TArray<FJ3ItemStack>& Slots)
+{
+	// 처음 열 때 만든다
+	if (StorageWidget == nullptr)
+	{
+		const TSubclassOf<UJ3StorageWidget> WidgetClass = StorageWidgetClass != nullptr ? StorageWidgetClass : TSubclassOf<UJ3StorageWidget>(UJ3StorageWidget::StaticClass());
+		StorageWidget = CreateWidget<UJ3StorageWidget>(this, WidgetClass);
+	}
+	StorageWidget->SetStorage(Storage, Slots);
+	if (!StorageWidget->IsInViewport())
+	{
+		StorageWidget->AddToViewport(1);
+	}
+	RefreshUIInputMode(StorageWidget);
+}
+
+
+void AJ3PlayerController::Client_UpdateStorage_Implementation(AJ3StorageBuilding* Storage, const TArray<FJ3ItemStack>& Slots)
+{
+	if (StorageWidget != nullptr && StorageWidget->IsInViewport() && StorageWidget->GetStorage() == Storage)
+	{
+		StorageWidget->SetStorage(Storage, Slots);
+	}
+}
+
+
+void AJ3PlayerController::CloseStorageScreen()
+{
+	// 서버에도 알려 더는 내용을 받지 않는다
+	if (StorageWidget == nullptr || !StorageWidget->IsInViewport())
+	{
+		return;
+	}
+	const AJ3PlayerState* J3PlayerState = GetPlayerState<AJ3PlayerState>();
+	if (J3PlayerState != nullptr && StorageWidget->GetStorage() != nullptr)
+	{
+		J3PlayerState->GetMachineAccess()->Server_CloseStorage(StorageWidget->GetStorage());
+	}
+	StorageWidget->RemoveFromParent();
+	RefreshUIInputMode(nullptr);
+}
+
+
 void AJ3PlayerController::RefreshUIInputMode(UUserWidget* FocusWidget)
 {
 	// 모두 닫혔으면 게임 입력으로 돌아간다
@@ -254,7 +300,8 @@ void AJ3PlayerController::RefreshUIInputMode(UUserWidget* FocusWidget)
 	const bool bCraftingOpen = CraftingWidget != nullptr && CraftingWidget->IsInViewport();
 	const bool bBuildMenuOpen = BuildMenuWidget != nullptr && BuildMenuWidget->IsInViewport();
 	const bool bMachineOpen = MachineWidget != nullptr && MachineWidget->IsInViewport();
-	if (!bInventoryOpen && !bCraftingOpen && !bBuildMenuOpen && !bMachineOpen)
+	const bool bStorageOpen = StorageWidget != nullptr && StorageWidget->IsInViewport();
+	if (!bInventoryOpen && !bCraftingOpen && !bBuildMenuOpen && !bMachineOpen && !bStorageOpen)
 	{
 		SetInputMode(FInputModeGameOnly());
 		SetShowMouseCursor(false);
@@ -268,7 +315,7 @@ void AJ3PlayerController::RefreshUIInputMode(UUserWidget* FocusWidget)
 	UUserWidget* Focus = FocusWidget;
 	if (Focus == nullptr)
 	{
-		Focus = bBuildMenuOpen ? static_cast<UUserWidget*>(BuildMenuWidget) : (bCraftingOpen ? static_cast<UUserWidget*>(CraftingWidget) : (bMachineOpen ? static_cast<UUserWidget*>(MachineWidget) : static_cast<UUserWidget*>(InventoryWidget)));
+		Focus = bBuildMenuOpen ? static_cast<UUserWidget*>(BuildMenuWidget) : (bCraftingOpen ? static_cast<UUserWidget*>(CraftingWidget) : (bMachineOpen ? static_cast<UUserWidget*>(MachineWidget) : (bStorageOpen ? static_cast<UUserWidget*>(StorageWidget) : static_cast<UUserWidget*>(InventoryWidget))));
 	}
 	InputMode.SetWidgetToFocus(Focus->TakeWidget());
 	InputMode.SetHideCursorDuringCapture(false);

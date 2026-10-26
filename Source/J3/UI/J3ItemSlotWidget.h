@@ -13,13 +13,14 @@ class UJ3ItemSlotWidget;
 class UTextBlock;
 
 
-// 칸이 어디에 있는지 (인벤토리 가방 / 장비 칸 / 기계 칸, 기계 칸의 번호는 EJ3MachineSlot)
+// 칸이 어디에 있는지 (인벤토리 가방 / 장비 칸 / 기계 칸 / 창고 칸, 기계 칸의 번호는 EJ3MachineSlot)
 UENUM()
 enum class EJ3SlotKind : uint8
 {
 	Inventory,
 	Equipment,
 	Machine,
+	Storage,
 };
 
 

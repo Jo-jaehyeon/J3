@@ -9,4 +9,4 @@ power_pole,전신주,1,power,/Game/J3/Buildings/BP_J3Building_Placeholder.BP_J3B
 smelter,제련 시설,1,production,/Game/J3/Buildings/BP_J3Smelter.BP_J3Smelter_C,,iron_ingot:1;stone:1,true,on_obtain:iron_ingot,,(단계 5)
 miner_v1,채굴기 v1,1,production,/Game/J3/Buildings/BP_J3Miner.BP_J3Miner_C,,iron_ingot:1;copper_ingot:1,true,on_obtain:iron_ingot,rock|iron_deposit|copper_deposit|coal_deposit,(단계 5)
 conveyor,컨베이어 벨트,1,logistics,/Game/J3/Buildings/BP_J3Building_Placeholder.BP_J3Building_Placeholder_C,,iron_ingot:1,false,on_obtain:iron_ingot,,곡선 지원 (단계 5)
-storage,창고,1,logistics,/Game/J3/Buildings/BP_J3Building_Placeholder.BP_J3Building_Placeholder_C,,log:1;iron_ingot:1,false,on_obtain:log,,(단계 5)
+storage,창고,1,logistics,/Game/J3/Buildings/BP_J3Storage.BP_J3Storage_C,,log:1;iron_ingot:1,false,on_obtain:log,,(단계 5)

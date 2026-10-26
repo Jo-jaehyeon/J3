@@ -6,6 +6,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Building/J3BuildModeComponent.h"
 #include "Building/J3BuildingBase.h"
+#include "Building/J3StorageBuilding.h"
 #include "Core/J3PlayerController.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -239,6 +240,11 @@ FText UJ3HUDWidget::BuildDemolishText(const UJ3BuildModeComponent& BuildMode) co
 	{
 		const FJ3ItemDef* Item = UJ3DataSubsystem::Get()->GetItem(Stack.ItemId);
 		Parts.Add(FText::Format(LOCTEXT("RefundItem", "{0} ×{1}"), Item != nullptr ? Item->DisplayName : FText::FromName(Stack.ItemId), Stack.Count));
+	}
+	const AJ3StorageBuilding* TargetStorage = Cast<AJ3StorageBuilding>(Target);
+	if (TargetStorage != nullptr && TargetStorage->GetStoredCount() > 0)
+	{
+		Parts.Add(FText::Format(LOCTEXT("RefundStorage", "창고 안의 아이템 {0}개"), TargetStorage->GetStoredCount()));
 	}
 	const FText Refund = Parts.Num() > 0 ? FText::Join(FText::FromString(TEXT(", ")), Parts) : LOCTEXT("RefundNone", "없음");
 	const FText RangeText = BuildMode.IsDemolishTargetInRange() ? FText::GetEmpty() : LOCTEXT("DemolishTooFar", "   (너무 멉니다)");
