@@ -92,8 +92,9 @@ struct TStructOpsTypeTraits<FJ3SegmentNetArray> : public TStructOpsTypeTraitsBas
 };
 
 
-// 공장 시뮬레이션 상태를 클라이언트로 보내는 액터 (월드마다 하나, 서버가 만든다).
-// 중도 참가자는 접속할 때 전체 구간을 처음 복제로 받는다 (Multiplayer_Architecture 4.3 스냅샷).
+// 공장 시뮬레이션 상태를 클라이언트로 보내는 액터. 공간 청크(격자 칸)마다 하나씩 서버가 만든다.
+// Iris는 액터 하나가 한 번에 보낼 수 있는 양에 상한(512KB)이 있어, 한 액터에 모든 구간을 담으면 큰 공장에서 중도 참가가 끊긴다 (단계 2 측정).
+// 중도 참가자는 접속할 때 청크별로 전체 구간을 처음 복제로 받는다 (Multiplayer_Architecture 4.3 청크 단위 스냅샷).
 UCLASS(NotPlaceable)
 class J3_API AJ3FactoryReplicator : public AActor
 {
@@ -108,15 +109,20 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 
+	// 서버: 이 청크에 속한 구간 목록을 맞춘다 (새 구간은 바로 보내고, 없어진 구간은 뺀다)
+	void SetSegments(const TArray<int32>& SegmentIds);
+
+	// 서버: 아이템이 들어오거나 나간 구간 (보정 주기에 맞춰 보낸다)
+	void MarkSegmentDirty(int32 SegmentId);
+
+
 	// 클라이언트: 받은 구간을 자기 시뮬레이션에 반영
 	void ApplySegment(const FJ3SegmentNetItem& NetItem);
 	void RemoveSegment(int32 SegmentId);
 
 private:
-	// 서버: 시뮬레이션과 복제 목록을 맞춘다
-	void SyncTopology();
-	void OnSegmentsChanged(const TSet<int32>& SegmentIds);
 	void SendPendingSegments();
+	void RebuildNetIndex();
 	static void CopyToNet(const FJ3BeltSegment& Segment, FJ3SegmentNetItem& OutItem);
 
 	UPROPERTY(Replicated)
@@ -126,7 +132,5 @@ private:
 	TSet<int32> PendingSegmentIds;
 	TMap<int32, double> LastSentTime;
 	TMap<int32, int32> NetIndexById;
-	int32 SyncedTopologyVersion = INDEX_NONE;
 	float ResyncIntervalSec = 0.f;
-	FDelegateHandle SegmentsChangedHandle;
 };

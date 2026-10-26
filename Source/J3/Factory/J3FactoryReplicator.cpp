@@ -54,25 +54,22 @@ void AJ3FactoryReplicator::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 void AJ3FactoryReplicator::BeginPlay()
 {
 	Super::BeginPlay();
-	if (!HasAuthority())
+	if (HasAuthority())
 	{
-		return;
+		ResyncIntervalSec = UJ3DataSubsystem::Get()->GetConfigFloat("factory_resync_sec", 0.f);
 	}
-
-
-	// 서버: 시뮬레이션의 변경 이벤트를 받아 보낼 구간을 모은다
-	ResyncIntervalSec = UJ3DataSubsystem::Get()->GetConfigFloat("factory_resync_sec", 0.f);
-	UJ3FactorySimSubsystem* Simulation = GetWorld()->GetSubsystem<UJ3FactorySimSubsystem>();
-	SegmentsChangedHandle = Simulation->OnSegmentsChanged.AddUObject(this, &AJ3FactoryReplicator::OnSegmentsChanged);
-	SyncTopology();
 }
 
 
 void AJ3FactoryReplicator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (UJ3FactorySimSubsystem* Simulation = GetWorld()->GetSubsystem<UJ3FactorySimSubsystem>())
+	// 클라이언트: 청크가 사라지면(구간이 모두 철거됨) 받아 둔 구간도 지운다
+	if (!HasAuthority())
 	{
-		Simulation->OnSegmentsChanged.Remove(SegmentsChangedHandle);
+		for (const FJ3SegmentNetItem& Item : Segments.Items)
+		{
+			RemoveSegment(Item.SegmentId);
+		}
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -81,16 +78,10 @@ void AJ3FactoryReplicator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AJ3FactoryReplicator::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	if (!HasAuthority())
+	if (HasAuthority())
 	{
-		return;
+		SendPendingSegments();
 	}
-	const UJ3FactorySimSubsystem* Simulation = GetWorld()->GetSubsystem<UJ3FactorySimSubsystem>();
-	if (SyncedTopologyVersion != Simulation->GetTopologyVersion())
-	{
-		SyncTopology();
-	}
-	SendPendingSegments();
 }
 
 
@@ -113,46 +104,53 @@ void AJ3FactoryReplicator::CopyToNet(const FJ3BeltSegment& Segment, FJ3SegmentNe
 }
 
 
-void AJ3FactoryReplicator::SyncTopology()
+void AJ3FactoryReplicator::RebuildNetIndex()
 {
-	const UJ3FactorySimSubsystem* Simulation = GetWorld()->GetSubsystem<UJ3FactorySimSubsystem>();
-
-	// 없어진 구간 빼기
-	const int32 RemovedCount = Segments.Items.RemoveAll([Simulation](const FJ3SegmentNetItem& Item)
-	{
-		return Simulation->FindSegment(Item.SegmentId) == nullptr;
-	});
-	if (RemovedCount > 0)
-	{
-		Segments.MarkArrayDirty();
-	}
 	NetIndexById.Reset();
 	for (int32 Index = 0; Index < Segments.Items.Num(); ++Index)
 	{
 		NetIndexById.Add(Segments.Items[Index].SegmentId, Index);
 	}
+}
 
 
-	// 새 구간 넣기 (바로 보낸다)
-	for (const FJ3BeltSegment& Segment : Simulation->GetSegments())
+void AJ3FactoryReplicator::SetSegments(const TArray<int32>& SegmentIds)
+{
+	const UJ3FactorySimSubsystem* Simulation = GetWorld()->GetSubsystem<UJ3FactorySimSubsystem>();
+	const TSet<int32> Wanted(SegmentIds);
+
+	// 이 청크에서 빠진 구간 (철거되었거나 다른 청크로 옮겨짐)
+	const int32 RemovedCount = Segments.Items.RemoveAll([&Wanted](const FJ3SegmentNetItem& Item)
 	{
-		if (NetIndexById.Contains(Segment.Id))
+		return !Wanted.Contains(Item.SegmentId);
+	});
+	if (RemovedCount > 0)
+	{
+		Segments.MarkArrayDirty();
+	}
+	RebuildNetIndex();
+
+
+	// 새 구간 (바로 보낸다)
+	for (const int32 SegmentId : SegmentIds)
+	{
+		const FJ3BeltSegment* Segment = Simulation->FindSegment(SegmentId);
+		if (Segment == nullptr || NetIndexById.Contains(SegmentId))
 		{
 			continue;
 		}
 		FJ3SegmentNetItem& NetItem = Segments.Items.AddDefaulted_GetRef();
-		CopyToNet(Segment, NetItem);
+		CopyToNet(*Segment, NetItem);
 		Segments.MarkItemDirty(NetItem);
-		NetIndexById.Add(Segment.Id, Segments.Items.Num() - 1);
-		LastSentTime.Add(Segment.Id, GetWorld()->GetTimeSeconds());
+		NetIndexById.Add(SegmentId, Segments.Items.Num() - 1);
+		LastSentTime.Add(SegmentId, GetWorld()->GetTimeSeconds());
 	}
-	SyncedTopologyVersion = Simulation->GetTopologyVersion();
 }
 
 
-void AJ3FactoryReplicator::OnSegmentsChanged(const TSet<int32>& SegmentIds)
+void AJ3FactoryReplicator::MarkSegmentDirty(int32 SegmentId)
 {
-	PendingSegmentIds.Append(SegmentIds);
+	PendingSegmentIds.Add(SegmentId);
 }
 
 

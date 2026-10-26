@@ -7,6 +7,8 @@
 #include "Factory/J3BeltTypes.h"
 #include "J3FactorySimSubsystem.generated.h"
 
+class AJ3FactoryReplicator;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogJ3Factory, Log, All);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FJ3OnSegmentsChanged, const TSet<int32>& /*SegmentIds*/);
@@ -61,11 +63,8 @@ public:
 		return TopologyVersion;
 	}
 
-	// 측정: 최근 고정 틱 한 번의 계산 시간 (ms)
-	double GetLastStepMs() const
-	{
-		return LastStepMs;
-	}
+	// 측정: 지난 호출 이후 고정 틱 계산 시간의 평균·최대 (ms)를 돌려주고 초기화한다
+	void ConsumeStepStats(double& OutAverageMs, double& OutMaxMs);
 
 	// 아이템이 들어오거나 나간 구간 (복제용)
 	FJ3OnSegmentsChanged OnSegmentsChanged;
@@ -74,6 +73,11 @@ private:
 	void StepSimulation();
 	void RebuildIndex();
 
+	// 서버: 변경된 구간을 해당 청크의 복제 액터에 알리고, 구간 배치가 바뀌면 청크를 다시 나눈다
+	void NotifySegmentsChanged(const TSet<int32>& SegmentIds);
+	void RebuildReplicationChunks();
+	FIntPoint GetChunkOf(const FJ3BeltSegment& Segment) const;
+
 	TArray<FJ3BeltSegment> Segments;
 	TMap<int32, int32> IndexById;
 
@@ -81,5 +85,15 @@ private:
 	int32 MaxStepsPerFrame = 5;
 	float Accumulator = 0.f;
 	int32 TopologyVersion = 0;
-	double LastStepMs = 0.0;
+
+	// 서버 전용: 공간 청크별 복제 액터
+	UPROPERTY()
+	TMap<FIntPoint, TObjectPtr<AJ3FactoryReplicator>> ChunkReplicators;
+
+	TMap<int32, FIntPoint> SegmentChunks;
+	int32 ReplicatedTopologyVersion = INDEX_NONE;
+	float ChunkSizeCm = 5000.f;
+	double StepMsSum = 0.0;
+	double StepMsMax = 0.0;
+	int32 StepCount = 0;
 };

@@ -24,3 +24,6 @@ weapon_default_cooldown_sec,0.5,무기 cooldown_sec 빈 칸일 때 기본값 (�
 sim_tick_hz,20,공장 시뮬레이션 고정 틱 빈도 (제안: 단계 2 측정으로 조정)
 sim_max_steps_per_frame,5,느린 프레임에서 한 번에 따라잡는 최대 틱 수 (제안)
 factory_resync_sec,0.5,컨베이어 구간 보정 복제 최소 간격 (제안: 단계 2 측정으로 조정)
+factory_chunk_size_cm,5000,공장 복제 청크 한 변 (Iris 액터당 전송 상한 회피, 제안: 단계 2 측정)
+max_belt_items,50000,규모 상한: 컨베이어 위 아이템 수 (단계 2 측정 초기값)
+max_belt_segments,5000,규모 상한: 컨베이어 구간 수 (단계 2 측정 초기값)

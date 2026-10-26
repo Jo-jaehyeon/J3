@@ -31,6 +31,7 @@ void UJ3FactorySimSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
 	FixedStepSec = 1.f / FMath::Max(1.f, Data->GetConfigFloat("sim_tick_hz", 20.f));
 	MaxStepsPerFrame = FMath::Max(1, Data->GetConfigInt("sim_max_steps_per_frame", 5));
+	ChunkSizeCm = FMath::Max(100.f, Data->GetConfigFloat("factory_chunk_size_cm", ChunkSizeCm));
 }
 
 
@@ -48,15 +49,12 @@ void UJ3FactorySimSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	}
 
 
-	// 서버: 클라이언트로 상태를 보내는 액터를 만든다 (클라이언트에는 복제되어 생긴다)
+	// 클라이언트는 청크별 복제 액터를 서버에서 받는다
 	if (InWorld.GetNetMode() == NM_Client)
 	{
 		J3FactoryBench::StartClientStatsFromConsoleVariable(*this);
 		return;
 	}
-	FActorSpawnParameters ReplicatorParams;
-	ReplicatorParams.ObjectFlags |= RF_Transient;
-	InWorld.SpawnActor<AJ3FactoryReplicator>(AJ3FactoryReplicator::StaticClass(), ReplicatorParams);
 
 
 	// 개발용: 시작하자마자 벤치마크 컨베이어를 깐다
@@ -85,6 +83,82 @@ void UJ3FactorySimSubsystem::Tick(float DeltaTime)
 	{
 		Accumulator = FMath::Min(Accumulator, FixedStepSec);
 	}
+
+
+	// 서버: 구간 배치가 바뀌었으면 청크별 복제 액터를 다시 맞춘다
+	if (GetWorld()->GetNetMode() != NM_Client && ReplicatedTopologyVersion != TopologyVersion)
+	{
+		RebuildReplicationChunks();
+	}
+}
+
+
+FIntPoint UJ3FactorySimSubsystem::GetChunkOf(const FJ3BeltSegment& Segment) const
+{
+	// 구간 시작점이 있는 격자 칸
+	return FIntPoint(FMath::FloorToInt(Segment.StartLocation.X / ChunkSizeCm), FMath::FloorToInt(Segment.StartLocation.Y / ChunkSizeCm));
+}
+
+
+void UJ3FactorySimSubsystem::RebuildReplicationChunks()
+{
+	// 구간을 청크로 나눈다
+	TMap<FIntPoint, TArray<int32>> SegmentsByChunk;
+	SegmentChunks.Reset();
+	for (const FJ3BeltSegment& Segment : Segments)
+	{
+		const FIntPoint Chunk = GetChunkOf(Segment);
+		SegmentChunks.Add(Segment.Id, Chunk);
+		SegmentsByChunk.FindOrAdd(Chunk).Add(Segment.Id);
+	}
+
+
+	// 비게 된 청크의 복제 액터는 없앤다 (클라이언트는 액터가 사라질 때 구간을 지운다)
+	for (auto It = ChunkReplicators.CreateIterator(); It; ++It)
+	{
+		if (!SegmentsByChunk.Contains(It.Key()))
+		{
+			if (It.Value() != nullptr)
+			{
+				It.Value()->Destroy();
+			}
+			It.RemoveCurrent();
+		}
+	}
+
+
+	// 청크마다 복제 액터가 있게 하고 구간 목록을 맞춘다
+	for (const TPair<FIntPoint, TArray<int32>>& Pair : SegmentsByChunk)
+	{
+		TObjectPtr<AJ3FactoryReplicator>& Replicator = ChunkReplicators.FindOrAdd(Pair.Key);
+		if (Replicator == nullptr)
+		{
+			FActorSpawnParameters Params;
+			Params.ObjectFlags |= RF_Transient;
+			Replicator = GetWorld()->SpawnActor<AJ3FactoryReplicator>(AJ3FactoryReplicator::StaticClass(), Params);
+		}
+		Replicator->SetSegments(Pair.Value);
+	}
+	ReplicatedTopologyVersion = TopologyVersion;
+}
+
+
+void UJ3FactorySimSubsystem::NotifySegmentsChanged(const TSet<int32>& SegmentIds)
+{
+	// 서버: 해당 청크의 복제 액터에 알린다
+	if (GetWorld()->GetNetMode() != NM_Client)
+	{
+		for (const int32 SegmentId : SegmentIds)
+		{
+			const FIntPoint* Chunk = SegmentChunks.Find(SegmentId);
+			const TObjectPtr<AJ3FactoryReplicator>* Replicator = Chunk != nullptr ? ChunkReplicators.Find(*Chunk) : nullptr;
+			if (Replicator != nullptr && *Replicator != nullptr)
+			{
+				(*Replicator)->MarkSegmentDirty(SegmentId);
+			}
+		}
+	}
+	OnSegmentsChanged.Broadcast(SegmentIds);
 }
 
 
@@ -94,12 +168,15 @@ void UJ3FactorySimSubsystem::StepSimulation()
 	const double StartSeconds = FPlatformTime::Seconds();
 	TSet<int32> Changed;
 	J3BeltLogic::Step(Segments, IndexById, FixedStepSec, Changed);
-	LastStepMs = (FPlatformTime::Seconds() - StartSeconds) * 1000.0;
+	const double StepMs = (FPlatformTime::Seconds() - StartSeconds) * 1000.0;
+	StepMsSum += StepMs;
+	StepMsMax = FMath::Max(StepMsMax, StepMs);
+	++StepCount;
 
 
 	if (Changed.Num() > 0)
 	{
-		OnSegmentsChanged.Broadcast(Changed);
+		NotifySegmentsChanged(Changed);
 	}
 }
 
@@ -157,7 +234,7 @@ bool UJ3FactorySimSubsystem::InsertItem(int32 SegmentId, FJ3ItemTypeId Type)
 	{
 		return false;
 	}
-	OnSegmentsChanged.Broadcast({ SegmentId });
+	NotifySegmentsChanged({ SegmentId });
 	return true;
 }
 
@@ -173,6 +250,16 @@ FJ3BeltSegment* UJ3FactorySimSubsystem::FindSegmentMutable(int32 SegmentId)
 {
 	const int32* Index = IndexById.Find(SegmentId);
 	return Index != nullptr ? &Segments[*Index] : nullptr;
+}
+
+
+void UJ3FactorySimSubsystem::ConsumeStepStats(double& OutAverageMs, double& OutMaxMs)
+{
+	OutAverageMs = StepCount > 0 ? StepMsSum / StepCount : 0.0;
+	OutMaxMs = StepMsMax;
+	StepMsSum = 0.0;
+	StepMsMax = 0.0;
+	StepCount = 0;
 }
 
 

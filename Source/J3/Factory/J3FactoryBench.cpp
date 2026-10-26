@@ -3,6 +3,8 @@
 #include "Factory/J3FactoryBench.h"
 
 #include "Data/J3DataSubsystem.h"
+#include "Engine/NetConnection.h"
+#include "Engine/NetDriver.h"
 #include "Engine/World.h"
 #include "Factory/J3FactorySimSubsystem.h"
 #include "HAL/IConsoleManager.h"
@@ -52,18 +54,48 @@ namespace J3FactoryBenchPrivate
 	}
 
 
-	// 몇 초마다 측정값을 로그로 남긴다
+	// 이 PC의 네트워크 사용량 (서버: 클라이언트별 보낸 양, 클라: 받은 양), 바이트/초
+	FString DescribeBandwidth(const UWorld* World)
+	{
+		const UNetDriver* NetDriver = World->GetNetDriver();
+		if (NetDriver == nullptr)
+		{
+			return TEXT("네트워크 없음");
+		}
+		if (World->GetNetMode() == NM_Client)
+		{
+			return NetDriver->ServerConnection != nullptr ? FString::Printf(TEXT("받음 %d B/s"), NetDriver->ServerConnection->InBytesPerSecond) : FString();
+		}
+		FString Result = FString::Printf(TEXT("클라 %d명"), NetDriver->ClientConnections.Num());
+		for (const UNetConnection* Connection : NetDriver->ClientConnections)
+		{
+			Result += FString::Printf(TEXT(", 보냄 %d B/s"), Connection->OutBytesPerSecond);
+		}
+		return Result;
+	}
+
+
+	// 몇 초마다 측정값을 로그로 남긴다: 구간·아이템 수, 시뮬레이션 틱 계산 시간, 평균 프레임 시간, 대역폭
 	void StartStatsLog(UJ3FactorySimSubsystem& Simulation)
 	{
 		const TCHAR* Role = Simulation.GetWorld()->GetNetMode() == NM_Client ? TEXT("클라") : TEXT("서버");
 		TWeakObjectPtr<UJ3FactorySimSubsystem> WeakSimulation(&Simulation);
+		TSharedRef<uint64> LastFrame = MakeShared<uint64>(GFrameCounter);
 		FTimerHandle Handle;
-		Simulation.GetWorld()->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([WeakSimulation, Role]()
+		Simulation.GetWorld()->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([WeakSimulation, Role, LastFrame]()
 		{
-			if (const UJ3FactorySimSubsystem* Sim = WeakSimulation.Get())
+			UJ3FactorySimSubsystem* Sim = WeakSimulation.Get();
+			if (Sim == nullptr)
 			{
-				UE_LOG(LogJ3Factory, Display, TEXT("[Bench][%s] 구간 %d, 아이템 %d, 틱 계산 %.3f ms"), Role, Sim->GetSegments().Num(), Sim->CountItems(), Sim->GetLastStepMs());
+				return;
 			}
+			const uint64 Frames = FMath::Max<uint64>(1, GFrameCounter - *LastFrame);
+			*LastFrame = GFrameCounter;
+			const double FrameMs = StatsIntervalSec * 1000.0 / Frames;
+			double StepAverageMs = 0.0;
+			double StepMaxMs = 0.0;
+			Sim->ConsumeStepStats(StepAverageMs, StepMaxMs);
+			UE_LOG(LogJ3Factory, Display, TEXT("[Bench][%s] 구간 %d, 아이템 %d, 틱 계산 평균 %.3f / 최대 %.3f ms, 프레임 %.2f ms, %s"), Role, Sim->GetSegments().Num(), Sim->CountItems(), StepAverageMs, StepMaxMs, FrameMs, *DescribeBandwidth(Sim->GetWorld()));
 		}), StatsIntervalSec, true);
 	}
 }
