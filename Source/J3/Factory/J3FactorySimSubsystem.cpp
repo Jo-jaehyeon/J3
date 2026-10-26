@@ -4,6 +4,10 @@
 
 #include "Algo/BinarySearch.h"
 #include "Data/J3DataSubsystem.h"
+#include "Engine/World.h"
+#include "Factory/J3BeltVisualizer.h"
+#include "Factory/J3FactoryBench.h"
+#include "J3ProjectSettings.h"
 #include "Factory/J3BeltLogic.h"
 #include "HAL/PlatformTime.h"
 
@@ -26,6 +30,28 @@ void UJ3FactorySimSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
 	FixedStepSec = 1.f / FMath::Max(1.f, Data->GetConfigFloat("sim_tick_hz", 20.f));
 	MaxStepsPerFrame = FMath::Max(1, Data->GetConfigInt("sim_max_steps_per_frame", 5));
+}
+
+
+void UJ3FactorySimSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+{
+	Super::OnWorldBeginPlay(InWorld);
+
+	// 화면이 있는 쪽(리슨 서버 호스트·클라이언트)만 컨베이어 아이템을 그린다
+	if (InWorld.GetNetMode() != NM_DedicatedServer)
+	{
+		const TSubclassOf<AJ3BeltVisualizer> VisualizerClass = GetDefault<UJ3ProjectSettings>()->BeltVisualizerClass.LoadSynchronous();
+		FActorSpawnParameters Params;
+		Params.ObjectFlags |= RF_Transient;
+		InWorld.SpawnActor<AJ3BeltVisualizer>(VisualizerClass != nullptr ? VisualizerClass : TSubclassOf<AJ3BeltVisualizer>(AJ3BeltVisualizer::StaticClass()), Params);
+	}
+
+
+	// 개발용: 시작하자마자 벤치마크 컨베이어를 깐다 (서버만, 복제는 다음 단계)
+	if (InWorld.GetNetMode() != NM_Client)
+	{
+		J3FactoryBench::SpawnFromConsoleVariable(*this);
+	}
 }
 
 
@@ -80,6 +106,7 @@ void UJ3FactorySimSubsystem::AddSegment(const FJ3BeltSegment& Segment)
 	const int32 InsertAt = Algo::LowerBoundBy(Segments, Segment.Id, &FJ3BeltSegment::Id);
 	Segments.Insert(Segment, InsertAt);
 	RebuildIndex();
+	++TopologyVersion;
 }
 
 
@@ -92,6 +119,7 @@ void UJ3FactorySimSubsystem::RemoveSegment(int32 SegmentId)
 	}
 	Segments.RemoveAt(*Index);
 	RebuildIndex();
+	++TopologyVersion;
 }
 
 
@@ -99,6 +127,7 @@ void UJ3FactorySimSubsystem::ClearAll()
 {
 	Segments.Reset();
 	IndexById.Reset();
+	++TopologyVersion;
 }
 
 

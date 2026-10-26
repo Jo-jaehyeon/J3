@@ -177,6 +177,11 @@ struct FJ3GameData
 	TMap<FName, FJ3EquipmentDef> Equipment;
 	TMap<FName, float> Config;
 
+	// 컨베이어 위 아이템 종류 번호 (2바이트). 아이템 ID를 이름순으로 정렬해 1부터 매긴다.
+	// 서버·클라이언트는 데이터 해시가 같아야 접속되므로 번호도 같다. 0은 "없음".
+	TArray<FName> ItemTypeOrder;
+	TMap<FName, uint16> ItemTypeIds;
+
 	// 검증 오류에 원본 줄 번호를 알려 주기 위한 행 위치 (ID → CSV 줄)
 	TMap<FName, int32> ItemLines;
 	TMap<FName, int32> RecipeLines;

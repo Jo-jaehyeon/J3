@@ -198,6 +198,15 @@ bool FJ3DataLoader::LoadAll(const FString& DataDir, FJ3GameData& OutData, FJ3Dat
 	LoadEquipment(DataDir, OutData, Report, RawContents[4]);
 
 
+	// 컨베이어용 아이템 종류 번호
+	OutData.Items.GenerateKeyArray(OutData.ItemTypeOrder);
+	OutData.ItemTypeOrder.Sort(FNameLexicalLess());
+	for (int32 Index = 0; Index < OutData.ItemTypeOrder.Num(); ++Index)
+	{
+		OutData.ItemTypeIds.Add(OutData.ItemTypeOrder[Index], static_cast<uint16>(Index + 1));
+	}
+
+
 	// 서버·클라 비교용 해시
 	OutData.Hash = ComputeHash(RawContents);
 	return !Report.HasErrors();

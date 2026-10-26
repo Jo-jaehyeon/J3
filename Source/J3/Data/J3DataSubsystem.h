@@ -38,6 +38,10 @@ public:
 	const FJ3BuildingDef* GetBuilding(FName BuildingId) const;
 	const FJ3EquipmentDef* GetEquipment(FName ItemId) const;
 
+	// 컨베이어 아이템 종류 번호 ↔ 아이템 ID (없으면 0 / None)
+	uint16 GetItemTypeId(FName ItemId) const;
+	FName GetItemIdByType(uint16 TypeId) const;
+
 	const TMap<FName, FJ3ItemDef>& GetAllItems() const
 	{
 		return Data.Items;

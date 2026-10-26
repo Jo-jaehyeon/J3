@@ -22,6 +22,7 @@ class J3_API UJ3FactorySimSubsystem : public UTickableWorldSubsystem
 public:
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
 
@@ -48,6 +49,18 @@ public:
 		return FixedStepSec;
 	}
 
+	// 표시 보간용: 마지막 고정 틱 이후 지난 시간
+	float GetTimeSinceStep() const
+	{
+		return Accumulator;
+	}
+
+	// 구간이 추가·삭제될 때마다 오른다 (표시 쪽이 컨베이어 모양을 다시 만들지 판단)
+	int32 GetTopologyVersion() const
+	{
+		return TopologyVersion;
+	}
+
 	// 측정: 최근 고정 틱 한 번의 계산 시간 (ms)
 	double GetLastStepMs() const
 	{
@@ -67,5 +80,6 @@ private:
 	float FixedStepSec = 0.05f;
 	int32 MaxStepsPerFrame = 5;
 	float Accumulator = 0.f;
+	int32 TopologyVersion = 0;
 	double LastStepMs = 0.0;
 };

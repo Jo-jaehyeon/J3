@@ -43,4 +43,8 @@ struct FJ3BeltSegment
 
 	// 앞(끝에 가까운 것)부터 뒤 순서. [0]이 가장 앞.
 	TArray<FJ3BeltItem> Items;
+
+	// 표시용 모양 (로직은 쓰지 않는다). TODO(단계 4): 곡선 구간은 스플라인 점으로
+	FVector StartLocation = FVector::ZeroVector;
+	FVector EndLocation = FVector::ZeroVector;
 };

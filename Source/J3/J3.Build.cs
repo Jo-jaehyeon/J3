@@ -13,7 +13,7 @@ public class J3 : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "GameplayAbilities", "GameplayTags", "GameplayTasks" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "UMG", "Slate", "SlateCore" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "UMG", "Slate", "SlateCore", "DeveloperSettings" });
 
 		// 복제는 처음부터 Iris로 검증한다 (Multiplayer_Architecture 4.2.2). 실제 사용 여부는 net.Iris.UseIrisReplication
 		SetupIrisSupport(Target);

@@ -144,6 +144,19 @@ const FJ3EquipmentDef* UJ3DataSubsystem::GetEquipment(FName ItemId) const
 }
 
 
+uint16 UJ3DataSubsystem::GetItemTypeId(FName ItemId) const
+{
+	const uint16* TypeId = Data.ItemTypeIds.Find(ItemId);
+	return TypeId != nullptr ? *TypeId : 0;
+}
+
+
+FName UJ3DataSubsystem::GetItemIdByType(uint16 TypeId) const
+{
+	return Data.ItemTypeOrder.IsValidIndex(TypeId - 1) ? Data.ItemTypeOrder[TypeId - 1] : NAME_None;
+}
+
+
 bool UJ3DataSubsystem::FindItem(FName ItemId, FJ3ItemDef& OutItem) const
 {
 	const FJ3ItemDef* Found = GetItem(ItemId);
