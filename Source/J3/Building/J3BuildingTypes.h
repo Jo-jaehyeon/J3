@@ -20,6 +20,7 @@ enum class EJ3PlacementResult : uint8
 	NoGround,
 	TooSteep,
 	Overlapping,
+	NeedsResourceNode,
 };
 
 

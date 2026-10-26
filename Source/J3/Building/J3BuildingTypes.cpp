@@ -27,6 +27,8 @@ namespace J3Building
 			return LOCTEXT("TooFar", "너무 멉니다");
 		case EJ3PlacementResult::NoGround:
 			return LOCTEXT("NoGround", "놓을 바닥이 없습니다");
+		case EJ3PlacementResult::NeedsResourceNode:
+			return LOCTEXT("NeedsResourceNode", "맞는 자원 위에만 설치할 수 있습니다");
 		case EJ3PlacementResult::TooSteep:
 			return LOCTEXT("TooSteep", "경사가 너무 급합니다 (토대 위에 설치하세요)");
 		case EJ3PlacementResult::Overlapping:

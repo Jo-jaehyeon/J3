@@ -273,7 +273,7 @@ void FJ3DataLoader::LoadBuildings(const FString& DataDir, FJ3GameData& OutData, 
 	using namespace J3DataLoaderPrivate;
 
 	FJ3CsvTable Table;
-	if (!OpenTable(Table, DataDir, TEXT("buildings.csv"), { "id", "name_ko", "tier", "category", "class", "limit", "build_inputs", "needs_power", "unlock", "note" }, Report, OutRaw))
+	if (!OpenTable(Table, DataDir, TEXT("buildings.csv"), { "id", "name_ko", "tier", "category", "class", "limit", "build_inputs", "needs_power", "unlock", "place_on", "note" }, Report, OutRaw))
 	{
 		return;
 	}
@@ -292,6 +292,12 @@ void FJ3DataLoader::LoadBuildings(const FString& DataDir, FJ3GameData& OutData, 
 		Def.BuildInputs = Reader.RequiredItemAmounts("build_inputs");
 		Def.bNeedsPower = Reader.RequiredBool("needs_power");
 		Def.Unlock = Reader.RequiredUnlock("unlock");
+		TArray<FString> PlaceOnParts;
+		Reader.Optional("place_on").ParseIntoArray(PlaceOnParts, TEXT("|"));
+		for (const FString& Part : PlaceOnParts)
+		{
+			Def.PlaceOn.Add(FName(*Part.TrimStartAndEnd()));
+		}
 		Def.Note = Reader.Optional("note");
 		AddUnique(OutData.Buildings, &OutData.BuildingLines, MoveTemp(Def), Reader);
 	}

@@ -5,6 +5,9 @@
 #include "Building/J3BuildingSubsystem.h"
 #include "Components/StaticMeshComponent.h"
 #include "Data/J3DataSubsystem.h"
+#include "Engine/SCS_Node.h"
+#include "Engine/SimpleConstructionScript.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
@@ -57,6 +60,65 @@ void AJ3BuildingBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 const FJ3BuildingDef* AJ3BuildingBase::GetDef() const
 {
 	return UJ3DataSubsystem::Get()->GetBuilding(BuildingId);
+}
+
+
+void AJ3BuildingBase::GetPorts(TArray<FJ3PortInfo>& OutPorts) const
+{
+	TInlineComponentArray<UJ3PortComponent*> Ports(this);
+	for (const UJ3PortComponent* Port : Ports)
+	{
+		OutPorts.Add({ Port->Kind, Port->Direction, Port->GetComponentTransform() });
+	}
+}
+
+
+void AJ3BuildingBase::GetClassPorts(TSubclassOf<AJ3BuildingBase> BuildingClass, TArray<FJ3PortInfo>& OutPorts)
+{
+	// C++에서 만든 포트는 기본 객체에 있다
+	const AJ3BuildingBase* Default = BuildingClass != nullptr ? BuildingClass->GetDefaultObject<AJ3BuildingBase>() : nullptr;
+	if (Default == nullptr)
+	{
+		return;
+	}
+	TInlineComponentArray<UJ3PortComponent*> NativePorts(Default);
+	for (const UJ3PortComponent* Port : NativePorts)
+	{
+		OutPorts.Add({ Port->Kind, Port->Direction, Port->GetRelativeTransform() });
+	}
+
+
+	// 블루프린트에서 붙인 포트는 구성 스크립트에 있다 (루트에 바로 붙인다고 본다). 부모 블루프린트까지 본다
+	for (UClass* Class = BuildingClass; Class != nullptr; Class = Class->GetSuperClass())
+	{
+		const UBlueprintGeneratedClass* BlueprintClass = Cast<UBlueprintGeneratedClass>(Class);
+		const USimpleConstructionScript* Script = BlueprintClass != nullptr ? BlueprintClass->SimpleConstructionScript : nullptr;
+		if (Script == nullptr)
+		{
+			continue;
+		}
+		for (const USCS_Node* Node : Script->GetAllNodes())
+		{
+			if (const UJ3PortComponent* Port = Cast<UJ3PortComponent>(Node->ComponentTemplate))
+			{
+				OutPorts.Add({ Port->Kind, Port->Direction, Port->GetRelativeTransform() });
+			}
+		}
+	}
+}
+
+
+AJ3PlaceholderBuilding::AJ3PlaceholderBuilding()
+{
+	// 기본 자리 표시 모양(2m 정육면체) 기준 앞뒤 면 가운데
+	ItemIn = CreateDefaultSubobject<UJ3PortComponent>(TEXT("ItemIn"));
+	ItemIn->SetupAttachment(Root);
+	ItemIn->Direction = EJ3PortDirection::In;
+	ItemIn->SetRelativeLocationAndRotation(FVector(-100.f, 0.f, 50.f), FRotator(0.f, 180.f, 0.f));
+	ItemOut = CreateDefaultSubobject<UJ3PortComponent>(TEXT("ItemOut"));
+	ItemOut->SetupAttachment(Root);
+	ItemOut->Direction = EJ3PortDirection::Out;
+	ItemOut->SetRelativeLocation(FVector(100.f, 0.f, 50.f));
 }
 
 

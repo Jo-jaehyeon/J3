@@ -138,6 +138,10 @@ struct FJ3BuildingDef
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	FJ3UnlockRule Unlock;
 
+	// 비어 있지 않으면 이 자원 노드(resource_nodes.csv id) 위에만 설치할 수 있다 (채굴기)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	TArray<FName> PlaceOn;
+
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	FString Note;
 };

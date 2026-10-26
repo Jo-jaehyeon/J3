@@ -361,7 +361,10 @@ void UJ3InventoryComponent::ApplyDebugGiveOnSpawn()
 		FString CountPart;
 		if (Entry.Split(TEXT(":"), &ItemPart, &CountPart))
 		{
-			J3InventoryLogic::Add(Slots, FName(*ItemPart.TrimStartAndEnd()), FCString::Atoi(*CountPart), StackSizeOf);
+			// 얻은 것으로도 기록한다 (해방 조건을 바로 시험할 수 있게)
+			const FName ItemId(*ItemPart.TrimStartAndEnd());
+			J3InventoryLogic::Add(Slots, ItemId, FCString::Atoi(*CountPart), StackSizeOf);
+			RecordObtained(ItemId);
 		}
 	}
 	if (!CVarEquipOnSpawn.GetValueOnGameThread())

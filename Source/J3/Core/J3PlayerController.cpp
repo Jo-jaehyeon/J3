@@ -6,6 +6,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "Building/J3BuildModeComponent.h"
+#include "Building/J3BuildVerify.h"
 #include "Building/J3BuilderComponent.h"
 #include "Building/J3BuildingBase.h"
 #include "Core/J3PlayerState.h"
@@ -143,6 +144,10 @@ void AJ3PlayerController::CloseBuildMenu()
 void AJ3PlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+
+	// 개발용 2인 건설 검증 (j3.Debug.AutoBuild, 평소에는 아무것도 하지 않는다)
+	J3BuildVerify::StartAutoBuild(this);
 
 
 	// 입력은 이 PC에서 조작하는 컨트롤러에만 등록한다 (서버에 있는 다른 플레이어의 컨트롤러 제외)

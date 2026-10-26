@@ -10,6 +10,8 @@
 #include "Inventory/J3InventoryComponent.h"
 #include "Inventory/J3InventoryLogic.h"
 #include "Engine/OverlapResult.h"
+#include "Interaction/J3Interactable.h"
+#include "Interaction/J3ResourceNode.h"
 #include "LandscapeProxy.h"
 #include "Player/J3Character.h"
 
@@ -118,7 +120,71 @@ bool UJ3BuildingSubsystem::TraceGround(const FVector& Location, const AActor* Bu
 	FCollisionObjectQueryParams Types;
 	Types.AddObjectTypesToQuery(ECC_WorldStatic);
 	Types.AddObjectTypesToQuery(ECC_WorldDynamic);
-	return GetWorld()->LineTraceSingleByObjectType(OutHit, Location + FVector(0.f, 0.f, GroundTraceUpCm), Location - FVector(0.f, 0.f, GroundTraceDownCm), Types, Params);
+	TArray<FHitResult> Hits;
+	GetWorld()->LineTraceMultiByObjectType(Hits, Location + FVector(0.f, 0.f, GroundTraceUpCm), Location - FVector(0.f, 0.f, GroundTraceDownCm), Types, Params);
+
+
+	// 줍는 아이템·자원 노드 같은 상호작용 물체는 바닥이 아니다 (그 위에 짓지 않고, 겹침 판정에서 걸린다)
+	for (const FHitResult& Hit : Hits)
+	{
+		const AActor* Actor = Hit.GetActor();
+		if (Actor != nullptr && !Actor->IsA<AJ3BuildingBase>() && Actor->Implements<UJ3Interactable>())
+		{
+			continue;
+		}
+		OutHit = Hit;
+		return true;
+	}
+	return false;
+}
+
+
+bool UJ3BuildingSubsystem::TrySnapToPort(TSubclassOf<AJ3BuildingBase> BuildingClass, const FVector& HalfExtent, const FVector& Location, FVector& OutLocation, float& OutYawDeg) const
+{
+	// 포트가 없는 건물(토대 등)은 붙지 않는다
+	TArray<FJ3PortInfo> MyPorts;
+	AJ3BuildingBase::GetClassPorts(BuildingClass, MyPorts);
+	if (MyPorts.Num() == 0)
+	{
+		return false;
+	}
+	const float SnapRadiusCm = UJ3DataSubsystem::Get()->GetConfigFloat("build_port_snap_radius_cm", 150.f);
+	const float SearchCm = HalfExtent.GetMax() * 4.f + SnapRadiusCm;
+	const TArray<AJ3BuildingBase*> Nearby = FindBuildingsInBox(FBox(Location - FVector(SearchCm), Location + FVector(SearchCm)));
+
+
+	// 내 포트 P를 이웃 포트 Q에 맞췄을 때의 건물 원점이 조준점에 가장 가까운 짝
+	float BestDistance = SnapRadiusCm;
+	bool bFound = false;
+	TArray<FJ3PortInfo> TheirPorts;
+	for (const AJ3BuildingBase* Neighbor : Nearby)
+	{
+		TheirPorts.Reset();
+		Neighbor->GetPorts(TheirPorts);
+		for (const FJ3PortInfo& Their : TheirPorts)
+		{
+			for (const FJ3PortInfo& Mine : MyPorts)
+			{
+				if (Mine.Kind != Their.Kind || Mine.Direction == Their.Direction)
+				{
+					continue;
+				}
+				// 두 포트가 마주 보게: 내 포트의 바깥 방향 = 이웃 포트 바깥 방향의 반대
+				const float Yaw = FRotator::NormalizeAxis(Their.Transform.Rotator().Yaw + 180.f - Mine.Transform.Rotator().Yaw);
+				const FVector Offset = FRotator(0.f, Yaw, 0.f).RotateVector(Mine.Transform.GetLocation());
+				const FVector Candidate(Their.Transform.GetLocation().X - Offset.X, Their.Transform.GetLocation().Y - Offset.Y, Location.Z);
+				const float Distance = FVector::Dist2D(Candidate, Location);
+				if (Distance < BestDistance)
+				{
+					BestDistance = Distance;
+					OutLocation = Candidate;
+					OutYawDeg = Yaw;
+					bFound = true;
+				}
+			}
+		}
+	}
+	return bFound;
 }
 
 
@@ -136,7 +202,7 @@ bool UJ3BuildingSubsystem::TrySnapToNeighbor(FName BuildingId, const FVector& Ha
 	bool bFound = false;
 	for (const AJ3BuildingBase* Neighbor : Nearby)
 	{
-		if (Neighbor->GetBuildingId() != BuildingId || !Neighbor->IsA<AJ3StructureBuilding>())
+		if (Neighbor->GetBuildingId() != BuildingId)
 		{
 			continue;
 		}
@@ -162,10 +228,72 @@ bool UJ3BuildingSubsystem::TrySnapToNeighbor(FName BuildingId, const FVector& Ha
 }
 
 
-bool UJ3BuildingSubsystem::ResolveTransform(FName BuildingId, const FVector& HalfExtent, const FVector& Location, float YawDeg, bool bGrid, const AActor* Builder, const AActor* IgnoreActor, FTransform& OutTransform, FVector& OutGroundNormal, const AActor*& OutGroundActor, bool& bOutSupported) const
+const AActor* UJ3BuildingSubsystem::FindAnchorNode(const TArray<FName>& AllowedNodes, const FVector& Location) const
 {
-	// 1) 보조 그리드가 켜져 있고 같은 토대 옆이면 거기에 붙인다 (높이도 이웃과 같다). 끄면 완전 자유 배치 (Building_Placement 2.1)
+	// 조준점 둘레의 자원 노드 (노드는 공간 인덱스에 없어 충돌 검사로 찾는다)
+	const float RadiusCm = UJ3DataSubsystem::Get()->GetConfigFloat("build_node_snap_radius_cm", 200.f);
+	FCollisionObjectQueryParams Types;
+	Types.AddObjectTypesToQuery(ECC_WorldStatic);
+	Types.AddObjectTypesToQuery(ECC_WorldDynamic);
+	TArray<FOverlapResult> Overlaps;
+	GetWorld()->OverlapMultiByObjectType(Overlaps, Location, FQuat::Identity, Types, FCollisionShape::MakeSphere(RadiusCm), FCollisionQueryParams(SCENE_QUERY_STAT(J3BuildAnchor), false));
+
+
+	// 허용된 종류 중 비어 있는(이미 건물이 올라가 있지 않은) 가장 가까운 것
+	const AActor* Best = nullptr;
+	float BestDistance = TNumericLimits<float>::Max();
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		const AJ3ResourceNode* Node = Cast<AJ3ResourceNode>(Overlap.GetActor());
+		const float Distance = Node != nullptr ? FVector::Dist2D(Node->GetActorLocation(), Location) : BestDistance;
+		const bool bOccupied = Node != nullptr && FindBuildingsInBox(FBox(Node->GetActorLocation() - FVector(RadiusCm * 0.5f), Node->GetActorLocation() + FVector(RadiusCm * 0.5f))).Num() > 0;
+		if (Node != nullptr && AllowedNodes.Contains(Node->GetNodeId()) && Distance < BestDistance && !bOccupied)
+		{
+			Best = Node;
+			BestDistance = Distance;
+		}
+	}
+	return Best;
+}
+
+
+bool UJ3BuildingSubsystem::ResolveTransform(FName BuildingId, const FVector& HalfExtent, const FVector& Location, float YawDeg, bool bGrid, const AActor* Builder, const AActor* IgnoreActor, FTransform& OutTransform, FVector& OutGroundNormal, const AActor*& OutGroundActor, bool& bOutSupported, const AActor*& OutAnchor) const
+{
+	// 0) 자원 위에만 짓는 건물(채굴기): 가까운 맞는 자원 노드 자리에, 방향은 사용자가 돌린 대로
+	const FJ3BuildingDef* Def = UJ3DataSubsystem::Get()->GetBuilding(BuildingId);
+	const TSubclassOf<AJ3BuildingBase> BuildingClass = Def != nullptr ? Def->BuildingClass.TryLoadClass<AJ3BuildingBase>() : nullptr;
+	OutAnchor = nullptr;
 	bOutSupported = false;
+	if (Def != nullptr && Def->PlaceOn.Num() > 0)
+	{
+		OutAnchor = FindAnchorNode(Def->PlaceOn, Location);
+		FHitResult AnchorGround;
+		const FVector AnchorLocation = OutAnchor != nullptr ? OutAnchor->GetActorLocation() : Location;
+		if (!TraceGround(AnchorLocation, Builder, IgnoreActor, AnchorGround))
+		{
+			return false;
+		}
+		OutGroundNormal = AnchorGround.ImpactNormal;
+		OutGroundActor = AnchorGround.GetActor();
+		OutTransform = FTransform(FRotator(0.f, J3Building::QuantizeYaw(YawDeg), 0.f), J3Building::QuantizeLocation(AnchorGround.ImpactPoint));
+		return true;
+	}
+
+
+	// 1) 포트 스냅: 맞는 포트가 가까우면 그 자리·방향으로, 높이는 그 자리의 바닥
+	FVector PortLocation;
+	float PortYaw = 0.f;
+	FHitResult PortGround;
+	if (TrySnapToPort(BuildingClass, HalfExtent, Location, PortLocation, PortYaw) && TraceGround(PortLocation, Builder, IgnoreActor, PortGround))
+	{
+		OutGroundNormal = PortGround.ImpactNormal;
+		OutGroundActor = PortGround.GetActor();
+		OutTransform = FTransform(FRotator(0.f, J3Building::QuantizeYaw(PortYaw), 0.f), J3Building::QuantizeLocation(PortGround.ImpactPoint));
+		return true;
+	}
+
+
+	// 2) 보조 그리드가 켜져 있고 같은 건물 옆이면 거기에 붙인다 (높이도 이웃과 같다). 끄면 완전 자유 배치 (Building_Placement 2.1)
 	if (bGrid && TrySnapToNeighbor(BuildingId, HalfExtent, Location, YawDeg, OutTransform))
 	{
 		bOutSupported = true;
@@ -177,7 +305,7 @@ bool UJ3BuildingSubsystem::ResolveTransform(FName BuildingId, const FVector& Hal
 	}
 
 
-	// 2) 바닥 찾기
+	// 3) 바닥 찾기
 	FHitResult Ground;
 	if (!TraceGround(Location, Builder, IgnoreActor, Ground))
 	{
@@ -187,7 +315,7 @@ bool UJ3BuildingSubsystem::ResolveTransform(FName BuildingId, const FVector& Hal
 	float SnappedYaw = YawDeg;
 
 
-	// 3) 보조 그리드: 토대 위면 그 토대 기준 격자, 아니면 월드 격자. 격자에 맞춘 자리의 바닥을 다시 찾는다.
+	// 4) 보조 그리드: 토대 위면 그 토대 기준 격자, 아니면 월드 격자. 격자에 맞춘 자리의 바닥을 다시 찾는다.
 	if (bGrid)
 	{
 		const float GridCm = FMath::Max(1.f, UJ3DataSubsystem::Get()->GetConfigFloat("build_grid_cm", 100.f));
@@ -230,9 +358,15 @@ FJ3PlacementCheck UJ3BuildingSubsystem::CheckPlacement(FName BuildingId, const F
 	FVector GroundNormal;
 	const AActor* GroundActor = nullptr;
 	bool bSupported = false;
-	if (!ResolveTransform(BuildingId, HalfExtent, Location, YawDeg, bGrid, Builder, IgnoreActor, Check.Transform, GroundNormal, GroundActor, bSupported))
+	const AActor* Anchor = nullptr;
+	if (!ResolveTransform(BuildingId, HalfExtent, Location, YawDeg, bGrid, Builder, IgnoreActor, Check.Transform, GroundNormal, GroundActor, bSupported, Anchor))
 	{
 		Check.Result = EJ3PlacementResult::NoGround;
+		return Check;
+	}
+	if (Def->PlaceOn.Num() > 0 && Anchor == nullptr)
+	{
+		Check.Result = EJ3PlacementResult::NeedsResourceNode;
 		return Check;
 	}
 	const AJ3BuildingBase* GroundBuilding = Cast<AJ3BuildingBase>(GroundActor);
@@ -295,6 +429,7 @@ FJ3PlacementCheck UJ3BuildingSubsystem::CheckPlacement(FName BuildingId, const F
 	FCollisionQueryParams OverlapParams(SCENE_QUERY_STAT(J3BuildOverlap), false);
 	OverlapParams.AddIgnoredActor(GroundActor);
 	OverlapParams.AddIgnoredActor(IgnoreActor);
+	OverlapParams.AddIgnoredActor(Anchor);
 	FCollisionObjectQueryParams OverlapTypes;
 	OverlapTypes.AddObjectTypesToQuery(ECC_WorldStatic);
 	OverlapTypes.AddObjectTypesToQuery(ECC_WorldDynamic);

@@ -56,6 +56,7 @@ void UJ3BuilderComponent::Server_PlaceBuilding_Implementation(FName BuildingId, 
 	AJ3BuildingBase* Building = GetWorld()->SpawnActorDeferred<AJ3BuildingBase>(BuildingClass, Check.Transform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	Building->SetBuildingId(BuildingId);
 	Building->FinishSpawning(Check.Transform);
+	UE_LOG(LogJ3Building, Log, TEXT("설치 %s %s"), *BuildingId.ToString(), *Check.Transform.GetLocation().ToCompactString());
 }
 
 
@@ -71,6 +72,7 @@ void UJ3BuilderComponent::Server_Demolish_Implementation(AJ3BuildingBase* Buildi
 	// 거리 확인, 이미 철거 중이면 무시 (두 사람이 동시에 철거해도 한 번만 환급)
 	if (!CanDemolish(Building) || Building->IsActorBeingDestroyed())
 	{
+		UE_LOG(LogJ3Building, Log, TEXT("철거 무시 %s"), Building != nullptr ? *Building->GetName() : TEXT("(없음)"));
 		return;
 	}
 

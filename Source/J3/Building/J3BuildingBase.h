@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Building/J3PortComponent.h"
 #include "J3BuildingBase.generated.h"
 
 class UStaticMeshComponent;
@@ -38,6 +39,12 @@ public:
 
 	// 설치 판정용 크기: 원점(바닥 가운데) 기준 반 크기 (회전 전)
 	FVector GetFootprintHalfExtent() const;
+
+	// 이 건물에 붙은 포트 (월드 기준)
+	void GetPorts(TArray<FJ3PortInfo>& OutPorts) const;
+
+	// 건물 클래스에 정의된 포트 (원점 기준, 미리보기·설치 판정용). 블루프린트에서 붙인 포트도 포함한다.
+	static void GetClassPorts(TSubclassOf<AJ3BuildingBase> BuildingClass, TArray<FJ3PortInfo>& OutPorts);
 
 	// 윗면에 다른 건물을 올릴 수 있는지 (Building_Placement 1절: 충돌하지 않으면 건물 위 설치 가능)
 	virtual bool CanSupportBuildingsOnTop() const
@@ -95,9 +102,20 @@ class J3_API AJ3StructureBuilding : public AJ3BuildingBase
 };
 
 
-// 아직 기능이 없는 건물의 자리 표시 (단계 5에서 제 클래스로 바꾼다)
+// 아직 기능이 없는 건물의 자리 표시 (단계 5에서 제 클래스로 바꾼다).
+// 포트 스냅을 시험할 수 있게 앞(+X)에 아이템 출력, 뒤(-X)에 아이템 입력을 둔다 (위치는 블루프린트에서 고친다)
 UCLASS()
 class J3_API AJ3PlaceholderBuilding : public AJ3BuildingBase
 {
 	GENERATED_BODY()
+
+public:
+	AJ3PlaceholderBuilding();
+
+protected:
+	UPROPERTY(VisibleAnywhere, Category = "J3|Building")
+	TObjectPtr<UJ3PortComponent> ItemIn;
+
+	UPROPERTY(VisibleAnywhere, Category = "J3|Building")
+	TObjectPtr<UJ3PortComponent> ItemOut;
 };

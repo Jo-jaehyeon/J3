@@ -37,6 +37,20 @@ public:
 		return Buildings.Num();
 	}
 
+	// 모든 건물 (검증·세이브용)
+	TArray<AJ3BuildingBase*> GetAllBuildings() const
+	{
+		TArray<AJ3BuildingBase*> Result;
+		for (const TWeakObjectPtr<AJ3BuildingBase>& Building : Buildings)
+		{
+			if (Building.IsValid())
+			{
+				Result.Add(Building.Get());
+			}
+		}
+		return Result;
+	}
+
 	// 상자 안의 건물 (포트 스냅·철거 대상 찾기)
 	TArray<AJ3BuildingBase*> FindBuildingsInBox(const FBox& Box) const;
 
@@ -46,11 +60,18 @@ public:
 private:
 	FIntPoint GetCell(const FVector& Location) const;
 
-	// 최종 위치 정하기. 바닥이 없으면 false. bOutSupported: 이웃 토대에 붙어 지형 경사와 상관없이 놓였다.
-	bool ResolveTransform(FName BuildingId, const FVector& HalfExtent, const FVector& Location, float YawDeg, bool bGrid, const AActor* Builder, const AActor* IgnoreActor, FTransform& OutTransform, FVector& OutGroundNormal, const AActor*& OutGroundActor, bool& bOutSupported) const;
+	// 최종 위치 정하기. 바닥이 없으면 false. bOutSupported: 이웃에 붙어 지형 경사와 상관없이 놓였다.
+	// OutAnchor: 자원 위에만 짓는 건물이 올라간 자원 노드 (못 찾으면 null)
+	bool ResolveTransform(FName BuildingId, const FVector& HalfExtent, const FVector& Location, float YawDeg, bool bGrid, const AActor* Builder, const AActor* IgnoreActor, FTransform& OutTransform, FVector& OutGroundNormal, const AActor*& OutGroundActor, bool& bOutSupported, const AActor*& OutAnchor) const;
 
-	// 같은 종류의 구조물(토대) 옆 칸에 붙인다 (Building_Placement 2.1 스냅)
+	// 조준점 근처의 허용된 자원 노드 중 가장 가까운 것 (Building_Placement: 채굴기는 자원 위에만)
+	const AActor* FindAnchorNode(const TArray<FName>& AllowedNodes, const FVector& Location) const;
+
+	// 보조 그리드가 켜져 있을 때 같은 건물의 옆 칸(앞뒤좌우)에 붙인다 (Building_Placement 2.1 스냅)
 	bool TrySnapToNeighbor(FName BuildingId, const FVector& HalfExtent, const FVector& Location, float YawDeg, FTransform& OutTransform) const;
+
+	// 근처 건물의 맞는 포트와 마주 보게 놓는다 (Building_Placement 2.1, 보조 그리드와 상관없이 항상). 위치(XY)와 방향만 정한다
+	bool TrySnapToPort(TSubclassOf<AJ3BuildingBase> BuildingClass, const FVector& HalfExtent, const FVector& Location, FVector& OutLocation, float& OutYawDeg) const;
 
 	bool TraceGround(const FVector& Location, const AActor* Builder, const AActor* IgnoreActor, FHitResult& OutHit) const;
 

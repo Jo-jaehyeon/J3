@@ -4,7 +4,7 @@ stone,돌,0,resource,,
 plant_fiber,식물 섬유,0,resource,,발전 연료 겸용
 berry,열매,0,food,,
 log,통나무,1,resource,,
-stone_block,석재,1,resource,,
+stone_block,석재,1,resource,,돌 가공품 (레시피 추후)
 iron_ore,철광석,1,resource,,
 copper_ore,구리광석,1,resource,,
 coal,석탄,1,resource,,발전 연료

@@ -95,6 +95,13 @@ void FJ3DataValidator::CheckReferences(const FJ3GameData& Data, FJ3DataReport& R
 		{
 			CheckItem(Data, Report, TEXT("buildings.csv"), Line, TEXT("unlock"), ItemId);
 		}
+		for (const FName& NodeId : Building.PlaceOn)
+		{
+			if (!Data.ResourceNodes.Contains(NodeId))
+			{
+				Report.AddError(TEXT("buildings.csv"), Line, FString::Printf(TEXT("place_on: 없는 자원 노드 '%s'"), *NodeId.ToString()));
+			}
+		}
 		if (!FPackageName::DoesPackageExist(Building.BuildingClass.GetLongPackageName()))
 		{
 			Report.AddError(TEXT("buildings.csv"), Line, FString::Printf(TEXT("class: 없는 건물 블루프린트 '%s'"), *Building.BuildingClass.ToString()));
