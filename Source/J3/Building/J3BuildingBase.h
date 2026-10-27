@@ -53,6 +53,17 @@ public:
 		return false;
 	}
 
+	// 전력망에 이어지는 건물인지 (발전소·전신주·전기를 쓰는 기계), 서버의 전력망 노드 번호
+	virtual bool IsPowerNode() const
+	{
+		return false;
+	}
+
+	virtual int32 GetPowerNodeId() const
+	{
+		return INDEX_NONE;
+	}
+
 	// 안에 든 아이템 (기계 칸, 창고). 철거하면 건설 재료와 함께 돌려준다
 	virtual void GetStoredItems(TArray<FJ3ItemStack>& OutItems) const
 	{

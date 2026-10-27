@@ -41,7 +41,46 @@ namespace J3MachineLogicPrivate
 	}
 
 
-	EJ3MachineStatus StepMiner(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, bool& bOutChanged)
+	// 연료 한 개를 꺼내 태우기 시작한다 (탈 것이 없으면 false)
+	bool BurnNextFuel(FJ3MachineState& State, J3MachineLogic::FFuelBurnSec FuelBurnSec)
+	{
+		const float BurnSec = State.Fuel.IsEmpty() ? 0.f : FuelBurnSec(State.Fuel.ItemId);
+		if (BurnSec <= 0.f)
+		{
+			return false;
+		}
+		State.FuelLeftSec += BurnSec;
+		--State.Fuel.Count;
+		if (State.Fuel.Count <= 0)
+		{
+			State.Fuel.Clear();
+		}
+		return true;
+	}
+
+
+	EJ3MachineStatus StepGenerator(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, J3MachineLogic::FFuelBurnSec FuelBurnSec, bool& bOutChanged)
+	{
+		// 축전이 가득 차면 연료를 아낀다 (쓰는 건물이 있으면 다시 발전)
+		if (State.EnergyStored >= Def.EnergyCap)
+		{
+			return EJ3MachineStatus::OutputFull;
+		}
+		if (State.FuelLeftSec <= 0.f)
+		{
+			if (!BurnNextFuel(State, FuelBurnSec))
+			{
+				return EJ3MachineStatus::NoFuel;
+			}
+			bOutChanged = true;
+		}
+		State.FuelLeftSec -= DeltaSec;
+		State.EnergyStored = FMath::Min(Def.EnergyCap, State.EnergyStored + Def.PowerOutput * DeltaSec);
+		return EJ3MachineStatus::Running;
+	}
+
+
+	EJ3MachineStatus StepMiner(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, J3MachineLogic::FTryConsumePower TryConsumePower, bool& bOutChanged)
 	{
 		// 캘 자원이 없거나 출력이 차면 멈춘다 (진행도는 남겨 둔다)
 		if (State.ResourceItem.IsNone())
@@ -52,6 +91,10 @@ namespace J3MachineLogicPrivate
 		{
 			return EJ3MachineStatus::OutputFull;
 		}
+		if (Def.PowerUse > 0.f && !TryConsumePower(Def.PowerUse * DeltaSec))
+		{
+			return EJ3MachineStatus::NoPower;
+		}
 		if (Advance(State, Def.CycleSec, DeltaSec))
 		{
 			AddToOutput(State, State.ResourceItem, State.ResourceYield);
@@ -61,7 +104,7 @@ namespace J3MachineLogicPrivate
 	}
 
 
-	EJ3MachineStatus StepSmelter(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, J3MachineLogic::FFindRecipe FindRecipe, J3MachineLogic::FFuelBurnSec FuelBurnSec, bool& bOutChanged)
+	EJ3MachineStatus StepSmelter(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, J3MachineLogic::FFindRecipe FindRecipe, J3MachineLogic::FFuelBurnSec FuelBurnSec, J3MachineLogic::FTryConsumePower TryConsumePower, bool& bOutChanged)
 	{
 		// 입력 칸의 재료로 만들 레시피와 재료가 충분한지
 		const FJ3RecipeDef* Recipe = State.Input.IsEmpty() ? nullptr : FindRecipe(State.Input.ItemId);
@@ -80,18 +123,15 @@ namespace J3MachineLogicPrivate
 		// 연료 칸이 있는 기계는 탈 연료가 있어야 돈다 (가동 중에만 탄다)
 		if (Def.FuelCap > 0 && State.FuelLeftSec <= 0.f)
 		{
-			const float BurnSec = State.Fuel.IsEmpty() ? 0.f : FuelBurnSec(State.Fuel.ItemId);
-			if (BurnSec <= 0.f)
+			if (!BurnNextFuel(State, FuelBurnSec))
 			{
 				return EJ3MachineStatus::NoFuel;
 			}
-			State.FuelLeftSec += BurnSec;
-			--State.Fuel.Count;
-			if (State.Fuel.Count <= 0)
-			{
-				State.Fuel.Clear();
-			}
 			bOutChanged = true;
+		}
+		if (Def.PowerUse > 0.f && !TryConsumePower(Def.PowerUse * DeltaSec))
+		{
+			return EJ3MachineStatus::NoPower;
 		}
 		if (Def.FuelCap > 0)
 		{
@@ -118,15 +158,33 @@ namespace J3MachineLogicPrivate
 
 namespace J3MachineLogic
 {
-	bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec)
+	bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec, FTryConsumePower TryConsumePower)
 	{
 		using namespace J3MachineLogicPrivate;
 
 		bool bChanged = false;
-		const EJ3MachineStatus Status = Def.IsMiner() ? StepMiner(State, Def, DeltaSec, bChanged) : StepSmelter(State, Def, DeltaSec, FindRecipe, FuelBurnSec, bChanged);
+		EJ3MachineStatus Status;
+		if (Def.IsGenerator())
+		{
+			Status = StepGenerator(State, Def, DeltaSec, FuelBurnSec, bChanged);
+		}
+		else if (Def.IsMiner())
+		{
+			Status = StepMiner(State, Def, DeltaSec, TryConsumePower, bChanged);
+		}
+		else
+		{
+			Status = StepSmelter(State, Def, DeltaSec, FindRecipe, FuelBurnSec, TryConsumePower, bChanged);
+		}
 		bChanged |= Status != State.Status;
 		State.Status = Status;
 		return bChanged;
+	}
+
+
+	bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec)
+	{
+		return Step(State, Def, DeltaSec, FindRecipe, FuelBurnSec, [](float Amount) { return true; });
 	}
 
 

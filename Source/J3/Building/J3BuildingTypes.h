@@ -28,6 +28,10 @@ enum class EJ3PlacementResult : uint8
 	PortInUse,
 	NeedsOutputPort,
 	NeedsInputPort,
+	NeedsPowerNode,
+	WireExists,
+	WireTooLong,
+	WireLimit,
 };
 
 
@@ -44,8 +48,12 @@ struct FJ3PlacementCheck
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Building")
 	FTransform Transform;
 
-	// 컨베이어: 확정된 곡선 (시작 = Transform 위치)
+	// 컨베이어: 확정된 곡선 (시작 = Transform 위치). 전기줄은 Start·End만 쓴다
 	FJ3ConveyorPath ConveyorPath;
+
+	// 전기줄: 이을 두 건물
+	TWeakObjectPtr<class AJ3BuildingBase> WireNodeA;
+	TWeakObjectPtr<class AJ3BuildingBase> WireNodeB;
 
 	bool IsOk() const
 	{

@@ -97,6 +97,13 @@ public:
 	void SetSegmentSinkStorage(int32 SegmentId, AJ3StorageBuilding* Storage);
 	void ClearSegmentLinks(int32 SegmentId);
 
+	// 서버: 전력망 (Power_System 5절: 건물을 노드, 전기줄을 간선으로 하는 그래프, Actor 밖 데이터)
+	// 발전소·전기를 쓰는 기계는 기계 번호로, 전신주는 기계 없이(INDEX_NONE) 노드가 된다
+	int32 AddPowerNode(int32 MachineId);
+	void RemovePowerNode(int32 NodeId);
+	int32 AddPowerEdge(int32 NodeA, int32 NodeB);
+	void RemovePowerEdge(int32 EdgeId);
+
 	// 이 기계(건물 id)에서 이 재료로 만드는 레시피 (recipes.csv의 station)
 	static const FJ3RecipeDef* FindMachineRecipe(FName BuildingId, FName InputItem);
 
@@ -104,6 +111,15 @@ private:
 	void StepSimulation();
 	void StepMachines();
 	void TransferBeltsAndMachines();
+
+	// 전력망이 바뀌면 망(연결 묶음)을 다시 나눈다
+	void RebuildPowerGrids();
+
+	// 상류 → 하류 처리 순서 (Power_System 3.1: 전력이 모자라면 앞단부터). 연결이 바뀌면 다시 정한다
+	void RebuildMachineOrder();
+
+	// 이 기계가 속한 망의 축전에서 꺼내 쓴다 (모자라면 false)
+	bool TryConsumePower(int32 MachineId, float Amount);
 	void RebuildIndex();
 
 	// 서버: 변경된 구간을 해당 청크의 복제 액터에 알리고, 구간 배치가 바뀌면 청크를 다시 나눈다
@@ -126,6 +142,19 @@ private:
 	};
 	TMap<int32, int32> MachineOutputs;
 	TMap<int32, FSegmentSink> SegmentSinks;
+
+	// 처리 순서 (Machines 배열 위치, 발전소 먼저 그다음 상류부터)
+	TArray<int32> MachineOrder;
+	bool bMachineOrderDirty = true;
+
+	// 전력망: 노드 → 기계 번호, 간선 → 두 노드, 기계 → 망 번호, 망 → 발전소 기계 번호
+	TMap<int32, int32> PowerNodes;
+	TMap<int32, TPair<int32, int32>> PowerEdges;
+	TMap<int32, int32> MachineGrids;
+	TMap<int32, TArray<int32>> GridGenerators;
+	bool bPowerGridsDirty = true;
+	int32 NextPowerNodeId = 1;
+	int32 NextPowerEdgeId = 1;
 	int32 NextMachineId = 1;
 
 	// 컨베이어 건물 구간 번호 (벤치마크 구간과 겹치지 않게 큰 수부터)

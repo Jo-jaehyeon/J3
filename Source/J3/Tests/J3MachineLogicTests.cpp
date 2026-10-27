@@ -107,4 +107,38 @@ bool FJ3SmelterFuelTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FJ3GeneratorPowerTest, "J3.Machine.GeneratorAndPower", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FJ3GeneratorPowerTest::RunTest(const FString& Parameters)
+{
+	using namespace J3MachineLogicTests;
+
+	// 발전소: 나뭇가지 1개(2초) × 초당 10 = 20 축전, 상한 15에서 멈춘다
+	FJ3MachineDef Generator;
+	Generator.Kind = "generator";
+	Generator.FuelCap = 10;
+	Generator.PowerOutput = 10.f;
+	Generator.EnergyCap = 15.f;
+	FJ3MachineState GeneratorState;
+	GeneratorState.Fuel.ItemId = "branch";
+	GeneratorState.Fuel.Count = 1;
+	Run(GeneratorState, Generator, 3.f, nullptr);
+	TestTrue(TEXT("축전 상한 15"), FMath::IsNearlyEqual(GeneratorState.EnergyStored, 15.f));
+	TestTrue(TEXT("가득 차서 멈춤"), GeneratorState.Status == EJ3MachineStatus::OutputFull);
+
+
+	// 전기를 쓰는 채굴기: 전력을 못 받으면 멈추고 진행하지 않는다
+	FJ3MachineDef Miner = MakeMiner();
+	Miner.PowerUse = 5.f;
+	FJ3MachineState MinerState;
+	MinerState.ResourceItem = "stone";
+	for (int32 Tick = 0; Tick < 40; ++Tick)
+	{
+		J3MachineLogic::Step(MinerState, Miner, 0.05f, [](FName) { return nullptr; }, [](FName) { return 0.f; }, [](float) { return false; });
+	}
+	TestTrue(TEXT("전력 없음"), MinerState.Status == EJ3MachineStatus::NoPower);
+	TestEqual(TEXT("채굴 안 함"), MinerState.Output.Count, 0);
+	return true;
+}
+
 #endif

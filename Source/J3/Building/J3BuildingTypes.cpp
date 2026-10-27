@@ -41,6 +41,14 @@ namespace J3Building
 			return LOCTEXT("NeedsOutputPort", "기계의 출구(나가는 포트)를 조준하세요");
 		case EJ3PlacementResult::NeedsInputPort:
 			return LOCTEXT("NeedsInputPort", "기계·창고의 입구(들어오는 포트)를 조준하세요");
+		case EJ3PlacementResult::NeedsPowerNode:
+			return LOCTEXT("NeedsPowerNode", "발전소·전신주·전기를 쓰는 기계를 조준하세요");
+		case EJ3PlacementResult::WireExists:
+			return LOCTEXT("WireExists", "이미 이어져 있습니다");
+		case EJ3PlacementResult::WireTooLong:
+			return LOCTEXT("WireTooLong", "전기줄이 너무 깁니다 (멀리는 전신주로)");
+		case EJ3PlacementResult::WireLimit:
+			return LOCTEXT("WireLimit", "더 이을 수 없습니다 (전기를 쓰는 기계 1개, 전신주 4개)");
 		case EJ3PlacementResult::TooSteep:
 			return LOCTEXT("TooSteep", "경사가 너무 급합니다 (토대 위에 설치하세요)");
 		case EJ3PlacementResult::Overlapping:

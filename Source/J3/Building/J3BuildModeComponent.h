@@ -45,10 +45,10 @@ public:
 		return IsPlacing() || IsDemolishing();
 	}
 
-	// 우클릭·Esc: 컨베이어 시작점을 골랐으면 그것만 취소하고, 아니면 건설 모드를 모두 끝낸다
+	// 우클릭·Esc: 컨베이어·전기줄 시작점을 골랐으면 그것만 취소하고, 아니면 건설 모드를 모두 끝낸다
 	void EndAll()
 	{
-		if (bConveyorMode && bHasConveyorStart)
+		if ((bConveyorMode || bWireMode) && bHasConveyorStart)
 		{
 			bHasConveyorStart = false;
 			return;
@@ -60,6 +60,12 @@ public:
 	bool IsConveyorMode() const
 	{
 		return bConveyorMode;
+	}
+
+	// 전기줄: 컨베이어처럼 두 번 클릭 (전력 노드 → 전력 노드)
+	bool IsWireMode() const
+	{
+		return bWireMode;
 	}
 
 	bool HasConveyorStart() const
@@ -138,6 +144,7 @@ private:
 	bool TraceAim(FHitResult& OutHit) const;
 	void UpdatePreview();
 	void UpdateConveyorPreview(const FVector& Aim);
+	void UpdateWirePreview(const FVector& Aim);
 	void UpdateDemolish(float DeltaTime);
 
 	FName SelectedBuildingId;
@@ -155,6 +162,9 @@ private:
 
 	// 컨베이어 놓기: 고른 시작점 조준 (서버에 보낼 때 다시 판정한다)
 	bool bConveyorMode = false;
+	bool bWireMode = false;
+
+	// 컨베이어·전기줄 공통: 첫 클릭을 했는지
 	bool bHasConveyorStart = false;
 	FVector ConveyorStartAim = FVector::ZeroVector;
 

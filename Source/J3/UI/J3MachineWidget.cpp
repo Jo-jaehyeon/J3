@@ -41,6 +41,8 @@ namespace J3MachineWidgetPrivate
 			return LOCTEXT("NoFuel", "멈춤: 연료가 없습니다");
 		case EJ3MachineStatus::NoResource:
 			return LOCTEXT("NoResource", "멈춤: 아래에 캘 자원이 없습니다");
+		case EJ3MachineStatus::NoPower:
+			return LOCTEXT("NoPower", "멈춤: 전력이 부족합니다 (발전소 연료·전기줄 확인)");
 		}
 		return FText::GetEmpty();
 	}
@@ -186,7 +188,20 @@ void UJ3MachineWidget::Refresh()
 			MachineSlots[Index]->SetItem(View.GetSlot(static_cast<EJ3MachineSlot>(Index)));
 		}
 	}
-	StatusText->SetText(GetStatusText(View.Status));
+	const FJ3MachineDef* Def = CurrentMachine->GetMachineDef();
+	const bool bGenerator = Def != nullptr && Def->IsGenerator();
+	if (bGenerator && View.Status == EJ3MachineStatus::Running)
+	{
+		StatusText->SetText(FText::Format(LOCTEXT("Generating", "발전 중 (축전 {0}%)"), FMath::FloorToInt(View.EnergyFraction * 100.f)));
+	}
+	else if (bGenerator && View.Status == EJ3MachineStatus::OutputFull)
+	{
+		StatusText->SetText(LOCTEXT("EnergyFull", "축전이 가득 찼습니다 (쓰는 만큼 다시 발전)"));
+	}
+	else
+	{
+		StatusText->SetText(GetStatusText(View.Status));
+	}
 	ProgressBar->SetPercent(FMath::Max(0.f, CurrentMachine->GetProgress()));
 
 

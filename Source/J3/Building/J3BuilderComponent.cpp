@@ -4,6 +4,7 @@
 
 #include "Building/J3BuildingBase.h"
 #include "Building/J3ConveyorBuilding.h"
+#include "Building/J3PowerBuildings.h"
 #include "Building/J3BuildingSubsystem.h"
 #include "Core/J3PlayerState.h"
 #include "Data/J3DataSubsystem.h"
@@ -84,6 +85,29 @@ void UJ3BuilderComponent::Server_PlaceConveyor_Implementation(FName BuildingId, 
 }
 
 
+void UJ3BuilderComponent::Server_PlaceWire_Implementation(FName BuildingId, FVector AimA, FVector AimB)
+{
+	// 서버 판정 → 재료 → 생성 (두 끝을 정한 뒤 마쳐 처음 복제부터 모양이 들어가게 한다)
+	const UJ3BuildingSubsystem* Buildings = GetWorld()->GetSubsystem<UJ3BuildingSubsystem>();
+	const FJ3PlacementCheck Check = Buildings->CheckWire(BuildingId, AimA, AimB, GetBuilder());
+	const FJ3BuildingDef* Def = UJ3DataSubsystem::Get()->GetBuilding(BuildingId);
+	UClass* WireClass = Def != nullptr ? Def->BuildingClass.TryLoadClass<AJ3PowerWireBuilding>() : nullptr;
+	if (!Check.IsOk() || WireClass == nullptr)
+	{
+		UE_LOG(LogJ3Building, Display, TEXT("전기줄 설치 거부: %s"), *J3Building::GetResultText(Check.Result).ToString());
+		return;
+	}
+	if (!Cast<AJ3PlayerState>(GetOwner())->GetInventory()->TryRemoveAll(Def->BuildInputs))
+	{
+		return;
+	}
+	AJ3PowerWireBuilding* Wire = GetWorld()->SpawnActorDeferred<AJ3PowerWireBuilding>(WireClass, Check.Transform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	Wire->SetBuildingId(BuildingId);
+	Wire->SetEnds(Check.WireNodeA.Get(), Check.WireNodeB.Get(), Check.ConveyorPath.Start, Check.ConveyorPath.End);
+	Wire->FinishSpawning(Check.Transform);
+}
+
+
 bool UJ3BuilderComponent::CanDemolish(const AJ3BuildingBase* Building) const
 {
 	const AJ3Character* Builder = GetBuilder();
@@ -101,6 +125,20 @@ void UJ3BuilderComponent::Server_Demolish_Implementation(AJ3BuildingBase* Buildi
 	}
 
 
+	// 이어진 전기줄도 같이 철거한다 (끝이 없는 줄은 남기지 않는다)
+	for (AJ3PowerWireBuilding* Wire : AJ3PowerWireBuilding::FindWiresOf(Building))
+	{
+		if (Wire != Building && !Wire->IsActorBeingDestroyed())
+		{
+			RefundAndDestroy(Wire);
+		}
+	}
+	RefundAndDestroy(Building);
+}
+
+
+void UJ3BuilderComponent::RefundAndDestroy(AJ3BuildingBase* Building) const
+{
 	// 100% 환급 + 안에 든 아이템. 가방이 차서 못 넣은 것은 건물 자리에 떨군다.
 	UJ3InventoryComponent* Inventory = Cast<AJ3PlayerState>(GetOwner())->GetInventory();
 	if (const FJ3BuildingDef* Def = Building->GetDef())

@@ -19,7 +19,11 @@ AJ3ResourceSpawner::AJ3ResourceSpawner()
 	PrimaryActorTick.bCanEverTick = false;
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 #if WITH_EDITORONLY_DATA
-	CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Sprite"))->SetupAttachment(RootComponent);
+	// 에디터 아이콘 (게임 실행(-game)에서는 만들어지지 않아 null일 수 있다)
+	if (UBillboardComponent* Sprite = CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Sprite")))
+	{
+		Sprite->SetupAttachment(RootComponent);
+	}
 #endif
 }
 

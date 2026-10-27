@@ -417,11 +417,17 @@ void FJ3DataLoader::LoadMachines(const FString& DataDir, FJ3GameData& OutData, F
 		Def.FuelCap = Reader.OptionalInt("fuel_cap", 0);
 		Def.PowerUse = Reader.OptionalFloat("power_use", 0.f);
 		Def.bConveyor = Reader.RequiredBool("conveyor");
-		if (!Def.IsMiner() && !Def.IsSmelter())
+		Def.PowerOutput = Reader.OptionalFloat("power_output", 0.f);
+		Def.EnergyCap = Reader.OptionalFloat("energy_cap", 0.f);
+		if (!Def.IsMiner() && !Def.IsSmelter() && !Def.IsGenerator())
 		{
-			Reader.Error(TEXT("kind는 miner 또는 smelter"));
+			Reader.Error(TEXT("kind는 miner, smelter, generator 중 하나"));
 		}
-		if (Def.CycleSec <= 0.f || Def.OutputCap <= 0)
+		if (Def.IsGenerator() && (Def.PowerOutput <= 0.f || Def.EnergyCap <= 0.f || Def.FuelCap <= 0))
+		{
+			Reader.Error(TEXT("generator는 power_output, energy_cap, fuel_cap이 0보다 커야 합니다"));
+		}
+		if (!Def.IsGenerator() && (Def.CycleSec <= 0.f || Def.OutputCap <= 0))
 		{
 			Reader.Error(TEXT("cycle_sec와 output_cap은 0보다 커야 합니다"));
 		}

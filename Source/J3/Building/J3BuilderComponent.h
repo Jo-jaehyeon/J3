@@ -27,6 +27,10 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_PlaceConveyor(FName BuildingId, FVector StartAim, FVector EndAim, float EndYawOffsetDeg);
 
+	// 전기줄: 두 전력 노드 조준
+	UFUNCTION(Server, Reliable)
+	void Server_PlaceWire(FName BuildingId, FVector AimA, FVector AimB);
+
 	UFUNCTION(Server, Reliable)
 	void Server_Demolish(AJ3BuildingBase* Building);
 
@@ -36,4 +40,7 @@ public:
 private:
 	class AJ3Character* GetBuilder() const;
 	void DropLeftover(FName ItemId, int32 Count, const FVector& Location) const;
+
+	// 건설 재료 + 안에 든 아이템을 돌려주고 없앤다
+	void RefundAndDestroy(AJ3BuildingBase* Building) const;
 };

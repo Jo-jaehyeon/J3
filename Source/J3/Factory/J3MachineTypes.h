@@ -29,6 +29,8 @@ enum class EJ3MachineStatus : uint8
 	NoFuel,
 	// 채굴기 아래에 캘 자원이 없다
 	NoResource,
+	// 전력망에 이어지지 않았거나 축전이 모자란다 (Power_System 3절)
+	NoPower,
 };
 
 
@@ -52,6 +54,10 @@ struct FJ3MachineState
 
 	// 이번 주기 길이 (제련은 레시피마다 다를 수 있다)
 	float CycleSec = 0.f;
+
+	// 발전소: 축전량과 마지막으로 보낸 축전 비율(1% 단위, 복제를 줄이려고)
+	float EnergyStored = 0.f;
+	int32 SentEnergyPercent = INDEX_NONE;
 
 	EJ3MachineStatus Status = EJ3MachineStatus::NoInput;
 };
@@ -81,6 +87,10 @@ struct FJ3MachineView
 
 	UPROPERTY()
 	double CycleStartServerSec = 0.0;
+
+	// 발전소: 축전 비율 0~1
+	UPROPERTY()
+	float EnergyFraction = 0.f;
 
 	const FJ3ItemStack& GetSlot(EJ3MachineSlot Slot) const
 	{

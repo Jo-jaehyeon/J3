@@ -4,6 +4,8 @@
 
 #include "Building/J3BuildingBase.h"
 #include "Building/J3ConveyorBuilding.h"
+#include "Building/J3MachineBuildings.h"
+#include "Building/J3PowerBuildings.h"
 #include "Core/J3GameState.h"
 #include "Core/J3PlayerState.h"
 #include "Data/J3DataSubsystem.h"
@@ -461,6 +463,125 @@ EJ3PlacementResult UJ3BuildingSubsystem::ResolveConveyorEnd(bool bStart, const F
 }
 
 
+bool UJ3BuildingSubsystem::CanAddWire(const AJ3BuildingBase* Node) const
+{
+	// 종류별 최대 전기줄 수 (삼각형처럼 겹친 연결을 막는다)
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	const AJ3MachineBuilding* Machine = Cast<AJ3MachineBuilding>(Node);
+	const FJ3MachineDef* Def = Machine != nullptr ? Machine->GetMachineDef() : nullptr;
+	int32 MaxWires = 0;
+	if (Node != nullptr && Node->IsA<AJ3PowerPoleBuilding>())
+	{
+		MaxWires = Data->GetConfigInt("power_pole_max_wires", 4);
+	}
+	else if (Def != nullptr && Def->IsGenerator())
+	{
+		MaxWires = Data->GetConfigInt("power_generator_max_wires", 0);
+	}
+	else if (Def != nullptr)
+	{
+		MaxWires = Data->GetConfigInt("power_consumer_max_wires", 1);
+	}
+	return Node != nullptr && (MaxWires <= 0 || AJ3PowerWireBuilding::FindWiresOf(Node).Num() < MaxWires);
+}
+
+
+AJ3BuildingBase* UJ3BuildingSubsystem::ResolvePowerNode(const FVector& Aim, FVector& OutPoint) const
+{
+	// 전력 노드의 전기 연결점 중 조준점에 가장 가까운 것
+	const float SnapCm = UJ3DataSubsystem::Get()->GetConfigFloat("power_snap_radius_cm", 200.f);
+	AJ3BuildingBase* Best = nullptr;
+	float BestDistance = SnapCm;
+	for (AJ3BuildingBase* Building : FindBuildingsInBox(FBox(Aim - FVector(SnapCm * 2.f), Aim + FVector(SnapCm * 2.f))))
+	{
+		if (!Building->IsPowerNode())
+		{
+			continue;
+		}
+		TArray<FJ3PortInfo> Ports;
+		Building->GetPorts(Ports);
+		for (const FJ3PortInfo& Port : Ports)
+		{
+			const float Distance = FVector::Dist(Port.Transform.GetLocation(), Aim);
+			if (Port.Kind == EJ3PortKind::Power && Distance < BestDistance)
+			{
+				Best = Building;
+				BestDistance = Distance;
+				OutPoint = Port.Transform.GetLocation();
+			}
+		}
+	}
+	return Best;
+}
+
+
+FJ3PlacementCheck UJ3BuildingSubsystem::CheckWire(FName BuildingId, const FVector& AimA, const FVector& AimB, const AJ3Character* Builder) const
+{
+	FJ3PlacementCheck Check;
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	const FJ3BuildingDef* Def = Data->GetBuilding(BuildingId);
+	if (Def == nullptr || Builder == nullptr)
+	{
+		Check.Result = EJ3PlacementResult::UnknownBuilding;
+		return Check;
+	}
+
+
+	// 두 끝: 서로 다른 전력 노드
+	FVector PointA;
+	FVector PointB;
+	AJ3BuildingBase* NodeA = ResolvePowerNode(AimA, PointA);
+	AJ3BuildingBase* NodeB = ResolvePowerNode(AimB, PointB);
+	Check.ConveyorPath.Start = NodeA != nullptr ? PointA : AimA;
+	Check.ConveyorPath.End = NodeB != nullptr ? PointB : AimB;
+	Check.Transform = FTransform(Check.ConveyorPath.Start);
+	Check.WireNodeA = NodeA;
+	Check.WireNodeB = NodeB;
+	if (NodeA == nullptr || NodeB == nullptr || NodeA == NodeB)
+	{
+		Check.Result = EJ3PlacementResult::NeedsPowerNode;
+		return Check;
+	}
+	const TArray<AJ3PowerWireBuilding*> Existing = AJ3PowerWireBuilding::FindWiresOf(NodeA);
+	if (Existing.ContainsByPredicate([NodeA, NodeB](const AJ3PowerWireBuilding* Wire) { return Wire->ConnectsPair(NodeA, NodeB); }))
+	{
+		Check.Result = EJ3PlacementResult::WireExists;
+		return Check;
+	}
+	if (!CanAddWire(NodeA) || !CanAddWire(NodeB))
+	{
+		Check.Result = EJ3PlacementResult::WireLimit;
+		return Check;
+	}
+
+
+	// 공통 (해방·상한·재료), 거리 (두 끝 모두 건설 거리 안)
+	Check.Result = CheckCommon(BuildingId, *Def, Builder);
+	if (!Check.IsOk())
+	{
+		return Check;
+	}
+	const float RangeCm = Data->GetConfigFloat("build_range_cm", 1500.f);
+	if (FVector::Dist(Builder->GetActorLocation(), PointA) > RangeCm || FVector::Dist(Builder->GetActorLocation(), PointB) > RangeCm)
+	{
+		Check.Result = EJ3PlacementResult::TooFar;
+		return Check;
+	}
+
+
+	// 길이: 전신주끼리는 더 멀리 (Power_System 2절)
+	const bool bPoleToPole = NodeA->IsA<AJ3PowerPoleBuilding>() && NodeB->IsA<AJ3PowerPoleBuilding>();
+	const float MaxCm = Data->GetConfigFloat(bPoleToPole ? "power_pole_wire_max_length_cm" : "power_wire_max_length_cm", bPoleToPole ? 3000.f : 1500.f);
+	if (FVector::Dist(PointA, PointB) > MaxCm)
+	{
+		Check.Result = EJ3PlacementResult::WireTooLong;
+		return Check;
+	}
+	Check.Result = EJ3PlacementResult::Ok;
+	return Check;
+}
+
+
 FJ3PlacementCheck UJ3BuildingSubsystem::CheckConveyor(FName BuildingId, const FVector& StartAim, const FVector& EndAim, const AJ3Character* Builder, float EndYawOffsetDeg) const
 {
 	FJ3PlacementCheck Check;
@@ -538,9 +659,9 @@ FJ3PlacementCheck UJ3BuildingSubsystem::CheckPlacement(FName BuildingId, const F
 	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
 	const FJ3BuildingDef* Def = Data->GetBuilding(BuildingId);
 	const UClass* BuildingClass = Def != nullptr ? Def->BuildingClass.TryLoadClass<AJ3BuildingBase>() : nullptr;
-	if (BuildingClass == nullptr || Builder == nullptr || BuildingClass->IsChildOf<AJ3ConveyorBuilding>())
+	if (BuildingClass == nullptr || Builder == nullptr || BuildingClass->IsChildOf<AJ3ConveyorBuilding>() || BuildingClass->IsChildOf<AJ3PowerWireBuilding>())
 	{
-		// 컨베이어는 CheckConveyor로 판정한다
+		// 컨베이어·전기줄은 CheckConveyor·CheckWire로 판정한다
 		Check.Result = EJ3PlacementResult::UnknownBuilding;
 		return Check;
 	}

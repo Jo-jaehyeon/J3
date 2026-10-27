@@ -20,6 +20,8 @@ class J3_API AJ3MachineBuilding : public AJ3ProductionBuilding, public IJ3Intera
 	GENERATED_BODY()
 
 public:
+	AJ3MachineBuilding();
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	virtual bool CanInteract(const AJ3Character* Interactor) const override;
@@ -27,6 +29,12 @@ public:
 
 	virtual void GetStoredItems(TArray<FJ3ItemStack>& OutItems) const override;
 	virtual bool CanConnectConveyor() const override;
+	virtual bool IsPowerNode() const override;
+
+	virtual int32 GetPowerNodeId() const override
+	{
+		return PowerNodeId;
+	}
 
 	const FJ3MachineDef* GetMachineDef() const;
 
@@ -58,8 +66,13 @@ protected:
 	UPROPERTY(Replicated)
 	FJ3MachineView View;
 
-	// 서버: 공장 시뮬레이션 안의 기계 번호
+	// 서버: 공장 시뮬레이션 안의 기계 번호, 전력망 노드 번호 (전기를 쓰거나 만드는 기계만)
 	int32 MachineId = INDEX_NONE;
+	int32 PowerNodeId = INDEX_NONE;
+
+	// 전기줄 연결점 (전기를 쓰는 기계·발전소만 쓴다, 위쪽 가운데)
+	UPROPERTY(VisibleAnywhere, Category = "J3|Building")
+	TObjectPtr<UJ3PortComponent> PowerPort;
 };
 
 
@@ -78,6 +91,15 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "J3|Building")
 	TObjectPtr<UJ3PortComponent> ItemOut;
+};
+
+
+// 발전소 (Power_System 2절). 연료 칸에 넣은 연료를 태워 내부에 축전하고, 전기줄로 이어진 건물이 꺼내 쓴다.
+// 동작이 기계(연료 칸, 화면, 시뮬레이션 상태)와 같아 기계 건물로 둔다. TODO(Coding_Rules 3.1): 분류상 APowerBuilding 아래로 옮길지
+UCLASS()
+class J3_API AJ3GeneratorBuilding : public AJ3MachineBuilding
+{
+	GENERATED_BODY()
 };
 
 

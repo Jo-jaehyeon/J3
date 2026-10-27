@@ -5,6 +5,8 @@
 #include "Building/J3BuildPreview.h"
 #include "Building/J3ConveyorBuilding.h"
 #include "Building/J3ConveyorPreview.h"
+#include "Building/J3PowerBuildings.h"
+#include "Factory/J3ConveyorPath.h"
 #include "Building/J3StorageBuilding.h"
 #include "Building/J3BuilderComponent.h"
 #include "Building/J3BuildingBase.h"
@@ -70,14 +72,15 @@ void UJ3BuildModeComponent::BeginPlacing(FName BuildingId)
 		ConveyorPreview = GetWorld()->SpawnActor<AJ3ConveyorPreview>(AJ3ConveyorPreview::StaticClass(), Params);
 	}
 	bConveyorMode = BuildingClass->IsChildOf<AJ3ConveyorBuilding>();
+	bWireMode = BuildingClass->IsChildOf<AJ3PowerWireBuilding>();
 	bHasConveyorStart = false;
 	YawDeg = bConveyorMode ? 0.f : YawDeg;
 	// 포트 화살표: 컨베이어를 이을 수 있는 건물(창고, conveyor=true인 기계)의 청사진에만
 	const FJ3MachineDef* MachineDef = UJ3DataSubsystem::Get()->GetMachine(BuildingId);
 	const bool bShowPorts = BuildingClass->IsChildOf<AJ3StorageBuilding>() || (MachineDef != nullptr && MachineDef->bConveyor);
 	Preview->SetBuildingClass(BuildingClass, bShowPorts);
-	Preview->SetActorHiddenInGame(bConveyorMode);
-	ConveyorPreview->SetActorHiddenInGame(!bConveyorMode);
+	Preview->SetActorHiddenInGame(bConveyorMode || bWireMode);
+	ConveyorPreview->SetActorHiddenInGame(!bConveyorMode && !bWireMode);
 	SelectedBuildingId = BuildingId;
 	UpdatePreview();
 }
@@ -87,6 +90,7 @@ void UJ3BuildModeComponent::EndPlacing()
 {
 	SelectedBuildingId = NAME_None;
 	bConveyorMode = false;
+	bWireMode = false;
 	bHasConveyorStart = false;
 	if (Preview != nullptr)
 	{
@@ -113,6 +117,21 @@ void UJ3BuildModeComponent::Confirm()
 	const AJ3PlayerState* PlayerState = Cast<APlayerController>(GetOwner())->GetPlayerState<AJ3PlayerState>();
 	if (!IsPlacing() || !LastCheck.IsOk() || PlayerState == nullptr)
 	{
+		return;
+	}
+
+
+	// 전기줄: 첫 클릭은 한쪽 전력 노드, 두 번째 클릭에 설치
+	if (bWireMode)
+	{
+		if (!bHasConveyorStart)
+		{
+			ConveyorStartAim = LastAimLocation;
+			bHasConveyorStart = true;
+			return;
+		}
+		PlayerState->GetBuilder()->Server_PlaceWire(SelectedBuildingId, ConveyorStartAim, LastAimLocation);
+		bHasConveyorStart = false;
 		return;
 	}
 
@@ -315,6 +334,11 @@ void UJ3BuildModeComponent::UpdatePreview()
 		UpdateConveyorPreview(LastAimLocation);
 		return;
 	}
+	if (bWireMode)
+	{
+		UpdateWirePreview(LastAimLocation);
+		return;
+	}
 
 
 	// 서버와 같은 판정으로 위치와 색을 정한다 (바닥을 못 찾으면 조준점에 그대로 둔다)
@@ -352,4 +376,28 @@ void UJ3BuildModeComponent::UpdateConveyorPreview(const FVector& Aim)
 	{
 		ConveyorPreview->SetPath(LastCheck.ConveyorPath, LastCheck.IsOk());
 	}
+}
+
+
+void UJ3BuildModeComponent::UpdateWirePreview(const FVector& Aim)
+{
+	// 첫 클릭 전: 조준한 전력 노드의 연결점 표시, 뒤: 두 연결점 사이 직선 (판정은 서버와 같은 함수)
+	const UJ3BuildingSubsystem* Buildings = GetWorld()->GetSubsystem<UJ3BuildingSubsystem>();
+	const AJ3Character* Builder = Cast<AJ3Character>(Cast<APlayerController>(GetOwner())->GetPawn());
+	if (!bHasConveyorStart)
+	{
+		FVector Point = Aim;
+		LastCheck = FJ3PlacementCheck();
+		const AJ3BuildingBase* Node = Buildings->ResolvePowerNode(Aim, Point);
+		LastCheck.Result = Node == nullptr ? EJ3PlacementResult::NeedsPowerNode : (Buildings->CanAddWire(Node) ? EJ3PlacementResult::Ok : EJ3PlacementResult::WireLimit);
+		ConveyorPreview->SetActorHiddenInGame(false);
+		ConveyorPreview->SetMarkers({ Point }, LastCheck.IsOk());
+		return;
+	}
+	LastCheck = Buildings->CheckWire(SelectedBuildingId, ConveyorStartAim, Aim, Builder);
+	FJ3ConveyorPath Line = LastCheck.ConveyorPath;
+	Line.StartDirection = (Line.End - Line.Start).GetSafeNormal();
+	Line.EndDirection = Line.StartDirection;
+	ConveyorPreview->SetActorHiddenInGame(Line.Start.Equals(Line.End));
+	ConveyorPreview->SetPath(Line, LastCheck.IsOk());
 }

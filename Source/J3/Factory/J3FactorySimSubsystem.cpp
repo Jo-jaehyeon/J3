@@ -197,24 +197,246 @@ void UJ3FactorySimSubsystem::StepMachines()
 	TransferBeltsAndMachines();
 
 
-	// 기계 상태는 서버만 계산한다 (클라이언트는 복제된 칸 내용과 주기 시작 시각만 본다)
-	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
-	for (FJ3MachineState& State : Machines)
+	// 망·순서가 바뀌었으면 다시 정한다
+	if (bPowerGridsDirty)
 	{
+		RebuildPowerGrids();
+	}
+	if (bMachineOrderDirty)
+	{
+		RebuildMachineOrder();
+	}
+
+
+	// 기계 상태는 서버만 계산한다 (클라이언트는 복제된 칸 내용과 주기 시작 시각만 본다).
+	// 발전소가 먼저 축전하고, 전기를 쓰는 기계는 상류부터 축전을 꺼내 쓴다 (모자라면 뒤쪽이 멈춘다)
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	for (const int32 Index : MachineOrder)
+	{
+		FJ3MachineState& State = Machines[Index];
 		const FJ3MachineDef* Def = Data->GetMachine(State.BuildingId);
 		if (Def == nullptr)
 		{
 			continue;
 		}
 		const FName BuildingId = State.BuildingId;
-		const bool bChanged = J3MachineLogic::Step(State, *Def, FixedStepSec,
+		const int32 MachineId = State.Id;
+		bool bChanged = J3MachineLogic::Step(State, *Def, FixedStepSec,
 			[BuildingId](FName Item) { return FindMachineRecipe(BuildingId, Item); },
-			[Data](FName Item) { const FJ3FuelDef* Fuel = Data->GetFuel(Item); return Fuel != nullptr ? Fuel->BurnSec : 0.f; });
+			[Data](FName Item) { const FJ3FuelDef* Fuel = Data->GetFuel(Item); return Fuel != nullptr ? Fuel->BurnSec : 0.f; },
+			[this, MachineId](float Amount) { return TryConsumePower(MachineId, Amount); });
 		if (bChanged)
 		{
 			NotifyMachineChanged(State.Id);
 		}
 	}
+
+
+	// 발전소 축전 비율이 1% 넘게 바뀌면 표시를 고친다 (쓰는 쪽이 꺼내 간 것까지)
+	for (FJ3MachineState& State : Machines)
+	{
+		const FJ3MachineDef* Def = Data->GetMachine(State.BuildingId);
+		const int32 Percent = Def != nullptr && Def->IsGenerator() && Def->EnergyCap > 0.f ? FMath::FloorToInt(State.EnergyStored / Def->EnergyCap * 100.f) : INDEX_NONE;
+		if (Percent != State.SentEnergyPercent)
+		{
+			State.SentEnergyPercent = Percent;
+			NotifyMachineChanged(State.Id);
+		}
+	}
+}
+
+
+int32 UJ3FactorySimSubsystem::AddPowerNode(int32 MachineId)
+{
+	const int32 NodeId = NextPowerNodeId++;
+	PowerNodes.Add(NodeId, MachineId);
+	bPowerGridsDirty = true;
+	return NodeId;
+}
+
+
+void UJ3FactorySimSubsystem::RemovePowerNode(int32 NodeId)
+{
+	// 이 노드에 이어진 전기줄도 없앤다
+	PowerNodes.Remove(NodeId);
+	for (auto It = PowerEdges.CreateIterator(); It; ++It)
+	{
+		if (It.Value().Key == NodeId || It.Value().Value == NodeId)
+		{
+			It.RemoveCurrent();
+		}
+	}
+	bPowerGridsDirty = true;
+}
+
+
+int32 UJ3FactorySimSubsystem::AddPowerEdge(int32 NodeA, int32 NodeB)
+{
+	const int32 EdgeId = NextPowerEdgeId++;
+	PowerEdges.Add(EdgeId, TPair<int32, int32>(NodeA, NodeB));
+	bPowerGridsDirty = true;
+	return EdgeId;
+}
+
+
+void UJ3FactorySimSubsystem::RemovePowerEdge(int32 EdgeId)
+{
+	PowerEdges.Remove(EdgeId);
+	bPowerGridsDirty = true;
+}
+
+
+void UJ3FactorySimSubsystem::RebuildPowerGrids()
+{
+	// 전기줄로 이어진 노드끼리 같은 망 (합집합 찾기). 망 번호는 그 망의 가장 작은 노드 번호
+	TMap<int32, int32> Parent;
+	for (const TPair<int32, int32>& Node : PowerNodes)
+	{
+		Parent.Add(Node.Key, Node.Key);
+	}
+	auto Find = [&Parent](int32 Node)
+	{
+		int32 Root = Node;
+		while (Parent[Root] != Root)
+		{
+			Root = Parent[Root];
+		}
+		Parent[Node] = Root;
+		return Root;
+	};
+	for (const TPair<int32, TPair<int32, int32>>& Edge : PowerEdges)
+	{
+		if (Parent.Contains(Edge.Value.Key) && Parent.Contains(Edge.Value.Value))
+		{
+			const int32 A = Find(Edge.Value.Key);
+			const int32 B = Find(Edge.Value.Value);
+			Parent[FMath::Max(A, B)] = FMath::Min(A, B);
+		}
+	}
+
+
+	// 기계 → 망, 망 → 발전소 (축전은 망 안의 발전소들을 하나의 풀로 합쳐 쓴다, 제안)
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	MachineGrids.Reset();
+	GridGenerators.Reset();
+	for (const TPair<int32, int32>& Node : PowerNodes)
+	{
+		if (Node.Value == INDEX_NONE)
+		{
+			continue;
+		}
+		const int32 Grid = Find(Node.Key);
+		MachineGrids.Add(Node.Value, Grid);
+		const FJ3MachineState* State = FindMachineMutable(Node.Value);
+		const FJ3MachineDef* Def = State != nullptr ? Data->GetMachine(State->BuildingId) : nullptr;
+		if (Def != nullptr && Def->IsGenerator())
+		{
+			GridGenerators.FindOrAdd(Grid).Add(Node.Value);
+		}
+	}
+	bPowerGridsDirty = false;
+}
+
+
+void UJ3FactorySimSubsystem::RebuildMachineOrder()
+{
+	// 컨베이어로 이어진 기계 사이의 상류 → 하류 (출력 구간을 따라가다 받는 기계를 만나면 그 기계가 하류)
+	TMultiMap<int32, int32> Downstream;
+	for (const TPair<int32, int32>& Output : MachineOutputs)
+	{
+		int32 SegmentId = Output.Value;
+		for (int32 Guard = 0; Guard < Segments.Num() && SegmentId != INDEX_NONE; ++Guard)
+		{
+			const FSegmentSink* Sink = SegmentSinks.Find(SegmentId);
+			if (Sink != nullptr)
+			{
+				if (Sink->MachineId != INDEX_NONE)
+				{
+					Downstream.Add(Output.Key, Sink->MachineId);
+				}
+				break;
+			}
+			const FJ3BeltSegment* Segment = FindSegment(SegmentId);
+			SegmentId = Segment != nullptr ? Segment->NextId : INDEX_NONE;
+		}
+	}
+
+
+	// 깊이 = 상류에서 몇 번째인지 (고리가 있어도 끝나도록 기계 수만큼만 되풀이). 발전소는 맨 앞
+	const UJ3DataSubsystem* Data = UJ3DataSubsystem::Get();
+	TMap<int32, int32> Depth;
+	for (const FJ3MachineState& State : Machines)
+	{
+		const FJ3MachineDef* Def = Data->GetMachine(State.BuildingId);
+		Depth.Add(State.Id, Def != nullptr && Def->IsGenerator() ? -1 : 0);
+	}
+	for (int32 Pass = 0; Pass < Machines.Num(); ++Pass)
+	{
+		bool bMoved = false;
+		for (const TPair<int32, int32>& Link : Downstream)
+		{
+			const int32* From = Depth.Find(Link.Key);
+			int32* To = Depth.Find(Link.Value);
+			if (From != nullptr && To != nullptr && *To < *From + 1)
+			{
+				*To = *From + 1;
+				bMoved = true;
+			}
+		}
+		if (!bMoved)
+		{
+			break;
+		}
+	}
+
+
+	// 깊이, 같으면 번호 순서
+	MachineOrder.Reset(Machines.Num());
+	for (int32 Index = 0; Index < Machines.Num(); ++Index)
+	{
+		MachineOrder.Add(Index);
+	}
+	MachineOrder.Sort([this, &Depth](int32 A, int32 B)
+	{
+		const int32 DepthA = Depth.FindRef(Machines[A].Id);
+		const int32 DepthB = Depth.FindRef(Machines[B].Id);
+		return DepthA != DepthB ? DepthA < DepthB : Machines[A].Id < Machines[B].Id;
+	});
+	bMachineOrderDirty = false;
+}
+
+
+bool UJ3FactorySimSubsystem::TryConsumePower(int32 MachineId, float Amount)
+{
+	// 망에 이어진 발전소들의 축전을 합쳐 모자라지 않을 때만 꺼낸다 (번호 순서로 덜어낸다)
+	const int32* Grid = MachineGrids.Find(MachineId);
+	const TArray<int32>* Generators = Grid != nullptr ? GridGenerators.Find(*Grid) : nullptr;
+	if (Generators == nullptr)
+	{
+		return false;
+	}
+	float Available = 0.f;
+	for (const int32 GeneratorId : *Generators)
+	{
+		const FJ3MachineState* Generator = FindMachineMutable(GeneratorId);
+		Available += Generator != nullptr ? Generator->EnergyStored : 0.f;
+	}
+	if (Available < Amount)
+	{
+		return false;
+	}
+	float Remaining = Amount;
+	for (const int32 GeneratorId : *Generators)
+	{
+		FJ3MachineState* Generator = FindMachineMutable(GeneratorId);
+		const float Taken = Generator != nullptr ? FMath::Min(Generator->EnergyStored, Remaining) : 0.f;
+		if (Generator != nullptr)
+		{
+			Generator->EnergyStored -= Taken;
+		}
+		Remaining -= Taken;
+	}
+	return true;
 }
 
 
@@ -224,6 +446,8 @@ int32 UJ3FactorySimSubsystem::AddMachine(const FJ3MachineState& InitialState, AJ
 	FJ3MachineState& State = Machines.Add_GetRef(InitialState);
 	State.Id = NextMachineId++;
 	MachineOwners.Add(State.Id, Owner);
+	bMachineOrderDirty = true;
+	bPowerGridsDirty = true;
 	NotifyMachineChanged(State.Id);
 	return State.Id;
 }
@@ -235,6 +459,8 @@ void UJ3FactorySimSubsystem::RemoveMachine(int32 MachineId)
 	Machines.RemoveAll([MachineId](const FJ3MachineState& State) { return State.Id == MachineId; });
 	MachineOwners.Remove(MachineId);
 	MachineOutputs.Remove(MachineId);
+	bMachineOrderDirty = true;
+	bPowerGridsDirty = true;
 	for (auto It = SegmentSinks.CreateIterator(); It; ++It)
 	{
 		if (It.Value().MachineId == MachineId)
@@ -247,12 +473,14 @@ void UJ3FactorySimSubsystem::RemoveMachine(int32 MachineId)
 
 void UJ3FactorySimSubsystem::SetMachineOutput(int32 MachineId, int32 SegmentId)
 {
+	bMachineOrderDirty = true;
 	MachineOutputs.Add(MachineId, SegmentId);
 }
 
 
 void UJ3FactorySimSubsystem::SetSegmentSinkMachine(int32 SegmentId, int32 MachineId)
 {
+	bMachineOrderDirty = true;
 	FSegmentSink Sink;
 	Sink.MachineId = MachineId;
 	SegmentSinks.Add(SegmentId, Sink);
@@ -269,6 +497,7 @@ void UJ3FactorySimSubsystem::SetSegmentSinkStorage(int32 SegmentId, AJ3StorageBu
 
 void UJ3FactorySimSubsystem::ClearSegmentLinks(int32 SegmentId)
 {
+	bMachineOrderDirty = true;
 	SegmentSinks.Remove(SegmentId);
 	for (auto It = MachineOutputs.CreateIterator(); It; ++It)
 	{
@@ -441,6 +670,7 @@ void UJ3FactorySimSubsystem::SetSegmentNext(int32 SegmentId, int32 NextId)
 	if (Segment != nullptr && Segment->NextId != NextId)
 	{
 		Segment->NextId = NextId;
+		bMachineOrderDirty = true;
 		NotifySegmentsChanged({ SegmentId });
 	}
 }

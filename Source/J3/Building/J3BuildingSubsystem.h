@@ -38,6 +38,15 @@ public:
 	// bOutDirected: 포트·컨베이어에 붙어 방향이 정해졌다. 이미 다른 컨베이어가 붙은 점이면 PortInUse, 바닥도 없으면 NoGround
 	EJ3PlacementResult ResolveConveyorEnd(bool bStart, const FVector& Aim, const AActor* Builder, FVector& OutLocation, FVector& OutDirection, bool& bOutDirected) const;
 
+	// 전기줄: 두 전력 노드를 조준하면 그 연결점 사이를 잇는다 (Power_System 2절)
+	FJ3PlacementCheck CheckWire(FName BuildingId, const FVector& AimA, const FVector& AimB, const AJ3Character* Builder) const;
+
+	// 이 전력 노드에 전기줄을 더 이을 수 있는지 (전기를 쓰는 기계 1개, 전신주 4개, 발전소는 설정 값. 0이면 제한 없음)
+	bool CanAddWire(const AJ3BuildingBase* Node) const;
+
+	// 조준점 근처의 전력 노드와 그 전기 연결점 (없으면 null)
+	AJ3BuildingBase* ResolvePowerNode(const FVector& Aim, FVector& OutPoint) const;
+
 	int32 CountBuildings(FName BuildingId) const;
 
 	int32 CountAllBuildings() const

@@ -1,5 +1,6 @@
-id,kind,cycle_sec,output_cap,input_cap,fuel_cap,power_use,conveyor,note
-miner_simple,miner,4,100,0,0,0,false,저장 100개(확정) 차면 멈춤. 주기 임시
-miner_v1,miner,2,100,0,0,10,true,주기·저장·소비 전력 임시
-smelter_simple,smelter,3,100,100,50,0,false,연료로 가동. 레시피 time_sec 빈 칸이면 cycle_sec. 수치 임시
-smelter,smelter,2,100,100,0,10,true,전기로 가동. 수치 임시
+id,kind,cycle_sec,output_cap,input_cap,fuel_cap,power_use,conveyor,power_output,energy_cap,note
+miner_simple,miner,4,100,0,0,0,false,,,저장 100개(확정) 차면 멈춤. 주기 임시
+miner_v1,miner,2,100,0,0,10,true,,,주기·저장·소비 전력(초당) 임시
+smelter_simple,smelter,3,100,100,50,0,false,,,연료로 가동. 레시피 time_sec 빈 칸이면 cycle_sec. 수치 임시
+smelter,smelter,2,100,100,0,10,true,,,전기로 가동. 수치 임시
+generator_early,generator,1,0,0,50,0,false,20,1000,연료를 태워 초당 20 발전·최대 1000 축전 (미결정: 임시)

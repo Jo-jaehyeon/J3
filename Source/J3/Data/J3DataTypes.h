@@ -260,7 +260,7 @@ struct FJ3MachineDef
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	FName Id;
 
-	// miner(노드 자원을 캔다) / smelter(레시피로 가공한다)
+	// miner(노드 자원을 캔다) / smelter(레시피로 가공한다) / generator(연료로 발전·축전한다)
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	FName Kind;
 
@@ -285,6 +285,24 @@ struct FJ3MachineDef
 	// 컨베이어로 넘겨줄 수 있는지 (간이 채굴기·간이 제련로는 불가)
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	bool bConveyor = false;
+
+	// 발전소: 연료가 타는 동안 초당 발전량, 내부 축전 상한 (Power_System 2절)
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float PowerOutput = 0.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float EnergyCap = 0.f;
+
+	bool IsGenerator() const
+	{
+		return Kind == "generator";
+	}
+
+	// 전력망에 이어지는 건물인지 (발전소 또는 전기를 쓰는 기계)
+	bool IsPowerNode() const
+	{
+		return IsGenerator() || PowerUse > 0.f;
+	}
 
 	bool IsMiner() const
 	{

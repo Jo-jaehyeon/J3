@@ -18,7 +18,14 @@ namespace J3MachineLogic
 	using FFindRecipe = TFunctionRef<const FJ3RecipeDef*(FName InputItem)>;
 	using FFuelBurnSec = TFunctionRef<float(FName ItemId)>;
 
-	// DeltaSec만큼 진행한다. 칸 내용이나 상태가 바뀌면 true (복제할 때를 알린다)
+	// 전기를 쓰는 기계가 이번 틱에 쓸 전력을 전력망에서 받는다 (모자라면 false, 받지 않는다)
+	using FTryConsumePower = TFunctionRef<bool(float Amount)>;
+
+	// DeltaSec만큼 진행한다. 칸 내용이나 상태가 바뀌면 true (복제할 때를 알린다).
+	// 발전소는 연료를 태워 축전하고, 전기를 쓰는 기계는 돌 때만 전력을 받는다 (못 받으면 NoPower로 멈춘다)
+	J3_API bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec, FTryConsumePower TryConsumePower);
+
+	// 전력과 상관없는 경우 (전기를 쓰지 않는 기계, 테스트)
 	J3_API bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec);
 
 	// 아이템을 알맞은 칸(연료 → 연료 칸, 레시피 재료 → 입력 칸)에 넣는다. 넣은 개수를 돌려준다 (0이면 못 넣음)

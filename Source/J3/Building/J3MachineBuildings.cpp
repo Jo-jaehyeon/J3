@@ -31,6 +31,23 @@ namespace J3MachineBuildingsPrivate
 }
 
 
+AJ3MachineBuilding::AJ3MachineBuilding()
+{
+	// 기본 자리 표시 모양(2m 정육면체) 윗면 가운데. 위치는 블루프린트에서 고친다
+	PowerPort = CreateDefaultSubobject<UJ3PortComponent>(TEXT("PowerPort"));
+	PowerPort->SetupAttachment(Root);
+	PowerPort->Kind = EJ3PortKind::Power;
+	PowerPort->SetRelativeLocation(FVector(0.f, 0.f, 200.f));
+}
+
+
+bool AJ3MachineBuilding::IsPowerNode() const
+{
+	const FJ3MachineDef* Def = GetMachineDef();
+	return Def != nullptr && Def->IsPowerNode();
+}
+
+
 void AJ3MachineBuilding::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -58,6 +75,10 @@ void AJ3MachineBuilding::BeginPlay()
 	State.BuildingId = BuildingId;
 	InitMachineState(State);
 	MachineId = Sim->AddMachine(State, this);
+	if (IsPowerNode())
+	{
+		PowerNodeId = Sim->AddPowerNode(MachineId);
+	}
 	AJ3ConveyorBuilding::RelinkConveyorsNear(this);
 }
 
@@ -74,6 +95,10 @@ void AJ3MachineBuilding::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	UJ3FactorySimSubsystem* Sim = GetWorld()->GetSubsystem<UJ3FactorySimSubsystem>();
 	if (Sim != nullptr && MachineId != INDEX_NONE)
 	{
+		if (PowerNodeId != INDEX_NONE)
+		{
+			Sim->RemovePowerNode(PowerNodeId);
+		}
 		Sim->RemoveMachine(MachineId);
 	}
 	Super::EndPlay(EndPlayReason);
@@ -90,11 +115,19 @@ void AJ3MachineBuilding::ApplyMachineState(const FJ3MachineState& State)
 	View.Status = State.Status;
 	View.CycleSec = State.CycleSec;
 	View.CycleStartServerSec = (GameState != nullptr ? GameState->GetServerWorldTimeSeconds() : 0.0) - State.ProgressSec;
+	const FJ3MachineDef* Def = GetMachineDef();
+	View.EnergyFraction = Def != nullptr && Def->EnergyCap > 0.f ? FMath::Clamp(State.EnergyStored / Def->EnergyCap, 0.f, 1.f) : 0.f;
 }
 
 
 float AJ3MachineBuilding::GetProgress() const
 {
+	// 발전소는 축전 비율을 진행 막대로 보여 준다
+	const FJ3MachineDef* Def = GetMachineDef();
+	if (Def != nullptr && Def->IsGenerator())
+	{
+		return View.EnergyFraction;
+	}
 	const AGameStateBase* GameState = GetWorld()->GetGameState();
 	if (View.Status != EJ3MachineStatus::Running || View.CycleSec <= 0.f || GameState == nullptr)
 	{

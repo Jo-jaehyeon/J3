@@ -5,6 +5,8 @@
 #include "Building/J3BuilderComponent.h"
 #include "Building/J3ConveyorBuilding.h"
 #include "Building/J3MachineBuildings.h"
+#include "Building/J3PowerBuildings.h"
+#include "Factory/J3MachineLogic.h"
 #include "Building/J3StorageBuilding.h"
 #include "Data/J3DataSubsystem.h"
 #include "Factory/J3FactorySimSubsystem.h"
@@ -61,6 +63,7 @@ namespace J3BuildVerifyPrivate
 	constexpr int32 FactoryOreCount = 6;
 	constexpr float FactoryOreIntervalSec = 0.5f;
 	constexpr float FactoryLogDelaySec = 40.f;
+	constexpr int32 FactoryFuelCount = 5;
 
 
 	template <typename TBuilding>
@@ -197,6 +200,28 @@ void J3BuildVerify::StartAutoFactory(UWorld* World)
 		OutPath.End = StorageAt + FVector(-100.f, 0.f, PortHeight);
 		SpawnBuilding<AJ3ConveyorBuilding>(World, "conveyor", OutPath.Start, &OutPath);
 		AJ3StorageBuilding* Storage = SpawnBuilding<AJ3StorageBuilding>(World, "storage", StorageAt, nullptr);
+
+
+		// 전력: 제련 시설 옆 발전소에 통나무를 넣고 전기줄로 잇는다 (제련 시설은 전기로만 돈다)
+		AJ3GeneratorBuilding* Generator = SpawnBuilding<AJ3GeneratorBuilding>(World, "generator_early", SmelterAt + FVector(0.f, FactoryGapCm, 0.f), nullptr);
+		UJ3FactorySimSubsystem* PowerSim = World->GetSubsystem<UJ3FactorySimSubsystem>();
+		FJ3MachineState* GeneratorState = Generator != nullptr ? PowerSim->FindMachineMutable(Generator->GetMachineId()) : nullptr;
+		if (GeneratorState != nullptr)
+		{
+			GeneratorState->Fuel.ItemId = "log";
+			GeneratorState->Fuel.Count = FactoryFuelCount;
+		}
+		const FJ3BuildingDef* WireDef = UJ3DataSubsystem::Get()->GetBuilding("power_wire");
+		UClass* WireClass = WireDef != nullptr ? WireDef->BuildingClass.TryLoadClass<AJ3PowerWireBuilding>() : nullptr;
+		if (WireClass != nullptr && Generator != nullptr && Smelter != nullptr)
+		{
+			const FVector PortUp(0.f, 0.f, 200.f);
+			const FTransform WireAt(Generator->GetActorLocation() + PortUp);
+			AJ3PowerWireBuilding* Wire = World->SpawnActorDeferred<AJ3PowerWireBuilding>(WireClass, WireAt, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+			Wire->SetBuildingId("power_wire");
+			Wire->SetEnds(Generator, Smelter, Generator->GetActorLocation() + PortUp, Smelter->GetActorLocation() + PortUp);
+			Wire->FinishSpawning(WireAt);
+		}
 		UE_LOG(LogJ3BuildVerify, Display, TEXT("[공장 검증] 세움: 제련 %s, 입력 구간 %d, 창고 %s"), *GetNameSafe(Smelter), InConveyor != nullptr ? InConveyor->GetSegmentId() : -1, *GetNameSafe(Storage));
 
 
