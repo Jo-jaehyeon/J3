@@ -119,7 +119,7 @@ void UJ3MachineWidget::SetMachine(AJ3MachineBuilding* InMachine)
 	}
 	const TPair<EJ3MachineSlot, FText> Layout[] = {
 		{ EJ3MachineSlot::Input, LOCTEXT("Input", "재료") },
-		{ EJ3MachineSlot::Fuel, LOCTEXT("Fuel", "연료") },
+		{ EJ3MachineSlot::Fuel, Def->PowerUse > 0.f ? LOCTEXT("Battery", "배터리") : LOCTEXT("Fuel", "연료") },
 		{ EJ3MachineSlot::Output, LOCTEXT("Output", "결과") } };
 	const int32 Caps[] = { Def->InputCap, Def->FuelCap, Def->OutputCap };
 	for (const TPair<EJ3MachineSlot, FText>& Entry : Layout)

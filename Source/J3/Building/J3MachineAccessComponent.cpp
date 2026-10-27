@@ -122,7 +122,8 @@ void UJ3MachineAccessComponent::Server_InsertFromInventory_Implementation(AJ3Mac
 	const FName BuildingId = Machine->GetBuildingId();
 	const int32 Accepted = J3MachineLogic::Insert(*State, *Def, Stack.ItemId, Stack.Count,
 		[BuildingId](FName Item) { return UJ3FactorySimSubsystem::FindMachineRecipe(BuildingId, Item); },
-		[Data](FName Item) { const FJ3FuelDef* Fuel = Data->GetFuel(Item); return Fuel != nullptr ? Fuel->BurnSec : 0.f; });
+		[Data](FName Item) { return Data->GetFuelBurnSec(Item); },
+		[Data](FName Item) { return Data->GetBatteryEnergy(Item); });
 	if (Accepted > 0)
 	{
 		Inventory->RemoveItem(Stack.ItemId, Accepted);

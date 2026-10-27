@@ -23,6 +23,7 @@ private:
 	static void LoadResourceNodes(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 	static void LoadEquipment(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 	static void LoadMachines(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
+	static void LoadBatteries(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 	static void LoadFuels(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 	static void LoadConfig(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw);
 

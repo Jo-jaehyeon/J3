@@ -141,4 +141,29 @@ bool FJ3GeneratorPowerTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FJ3BatteryPowerTest, "J3.Machine.BatteryPower", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FJ3BatteryPowerTest::RunTest(const FString& Parameters)
+{
+	using namespace J3MachineLogicTests;
+
+	// 전력망 없이 배터리 1개(전력 11)로 초당 5 쓰는 채굴기가 2.2초 돌고 멈춘다 (주기 1초 → 2개)
+	FJ3MachineDef Miner = MakeMiner();
+	Miner.PowerUse = 5.f;
+	Miner.FuelCap = 3;
+	auto BatteryEnergy = [](FName Item) { return Item == "basic_battery" ? 11.f : 0.f; };
+	FJ3MachineState State;
+	State.ResourceItem = "stone";
+	TestEqual(TEXT("배터리 칸에 넣음"), J3MachineLogic::Insert(State, Miner, "basic_battery", 1, [](FName) { return nullptr; }, [](FName) { return 0.f; }, BatteryEnergy), 1);
+	TestEqual(TEXT("연료는 못 넣음"), J3MachineLogic::Insert(State, Miner, "branch", 1, [](FName) { return nullptr; }, [](FName Item) { return 4.f; }, BatteryEnergy), 0);
+	for (int32 Tick = 0; Tick < 60; ++Tick)
+	{
+		J3MachineLogic::Step(State, Miner, 0.05f, [](FName) { return nullptr; }, [](FName) { return 0.f; }, [](float) { return false; }, BatteryEnergy);
+	}
+	TestEqual(TEXT("2개 채굴"), State.Output.Count, 2);
+	TestTrue(TEXT("배터리가 다 되어 멈춤"), State.Status == EJ3MachineStatus::NoPower);
+	TestTrue(TEXT("배터리 다 씀"), State.Fuel.IsEmpty());
+	return true;
+}
+
 #endif

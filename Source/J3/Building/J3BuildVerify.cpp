@@ -3,23 +3,24 @@
 #include "Building/J3BuildVerify.h"
 
 #include "Building/J3BuilderComponent.h"
+#include "Building/J3BuildingBase.h"
+#include "Building/J3BuildingSubsystem.h"
 #include "Building/J3ConveyorBuilding.h"
 #include "Building/J3MachineBuildings.h"
 #include "Building/J3PowerBuildings.h"
-#include "Factory/J3MachineLogic.h"
 #include "Building/J3StorageBuilding.h"
-#include "Data/J3DataSubsystem.h"
-#include "Factory/J3FactorySimSubsystem.h"
-#include "Building/J3BuildingBase.h"
-#include "Building/J3BuildingSubsystem.h"
 #include "Core/J3PlayerState.h"
-#include "GameFramework/GameStateBase.h"
-#include "Inventory/J3InventoryComponent.h"
-#include "Inventory/J3InventoryLogic.h"
+#include "Data/J3DataSubsystem.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Factory/J3FactorySimSubsystem.h"
+#include "Factory/J3MachineLogic.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerStart.h"
+#include "Interaction/J3ResourceNode.h"
+#include "Inventory/J3InventoryComponent.h"
+#include "Inventory/J3InventoryLogic.h"
 #include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogJ3BuildVerify, Log, All);
@@ -57,13 +58,27 @@ namespace J3BuildVerifyPrivate
 		0,
 		TEXT("1이면 서버가 [컨베이어 → 제련 시설 → 컨베이어 → 창고]를 세우고 광석을 흘려 결과를 로그에 남긴다"));
 
-	// 시작 지점 옆 (자원·줍기 물건과 겹치지 않게 옆으로 비킨 자리), 기계 사이 간격, 흘릴 광석 수
-	constexpr float FactorySideOffsetCm = 1500.f;
-	constexpr float FactoryGapCm = 500.f;
-	constexpr int32 FactoryOreCount = 6;
-	constexpr float FactoryOreIntervalSec = 0.5f;
+	// 기계 사이 간격, 발전소 연료 수, 배터리로만 도는 제련 시설에 넣을 배터리·광석 수, 결과를 남길 때까지 기다리는 시간
+	constexpr float FactoryGapCm = 700.f;
+	constexpr int32 FactoryFuelCount = 10;
+	constexpr int32 FactoryBatteryCount = 2;
+	constexpr int32 FactoryBatteryOreCount = 3;
 	constexpr float FactoryLogDelaySec = 40.f;
-	constexpr int32 FactoryFuelCount = 5;
+	constexpr TCHAR FactoryNodeId[] = TEXT("iron_deposit");
+
+
+	// 기계의 연결점 높이 (자리 표시 모양 기준: 아이템 포트 50cm, 전기 연결점 윗면 200cm)
+	constexpr float ItemPortHeightCm = 50.f;
+	constexpr float PowerPortHeightCm = 200.f;
+	constexpr float PortOffsetCm = 100.f;
+
+
+	FVector GroundAt(UWorld* World, const FVector& Location)
+	{
+		FHitResult Ground;
+		World->LineTraceSingleByChannel(Ground, Location + FVector(0.f, 0.f, 500.f), Location - FVector(0.f, 0.f, 2000.f), ECC_Visibility);
+		return Ground.bBlockingHit ? Ground.ImpactPoint : Location;
+	}
 
 
 	template <typename TBuilding>
@@ -85,6 +100,34 @@ namespace J3BuildVerifyPrivate
 		}
 		Building->FinishSpawning(Transform);
 		return Building;
+	}
+
+
+	FJ3ConveyorPath StraightPath(const FVector& Start, const FVector& End)
+	{
+		FJ3ConveyorPath Path;
+		Path.Start = Start;
+		Path.End = End;
+		Path.StartDirection = (End - Start).GetSafeNormal();
+		Path.EndDirection = Path.StartDirection;
+		return Path;
+	}
+
+
+	void SpawnWire(UWorld* World, AJ3BuildingBase* From, AJ3BuildingBase* To)
+	{
+		const FJ3BuildingDef* Def = UJ3DataSubsystem::Get()->GetBuilding("power_wire");
+		UClass* Class = Def != nullptr ? Def->BuildingClass.TryLoadClass<AJ3PowerWireBuilding>() : nullptr;
+		if (Class == nullptr || From == nullptr || To == nullptr)
+		{
+			return;
+		}
+		const FVector Up(0.f, 0.f, PowerPortHeightCm);
+		const FTransform Transform(From->GetActorLocation() + Up);
+		AJ3PowerWireBuilding* Wire = World->SpawnActorDeferred<AJ3PowerWireBuilding>(Class, Transform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		Wire->SetBuildingId("power_wire");
+		Wire->SetEnds(From, To, From->GetActorLocation() + Up, To->GetActorLocation() + Up);
+		Wire->FinishSpawning(Transform);
 	}
 
 
@@ -178,72 +221,71 @@ void J3BuildVerify::StartAutoFactory(UWorld* World)
 	FTimerHandle BuildTimer;
 	World->GetTimerManager().SetTimer(BuildTimer, [World]()
 	{
-		// 바닥 높이 (시작 지점에서 아래로)
+		// 단계 5 완료 기준: 채굴 → 컨베이어 → 제련 → 창고가 전기로 돈다. 시작 지점에서 가장 가까운 철광석 광맥에 채굴기 v1을 세운다
 		TActorIterator<APlayerStart> Start(World);
-		const FVector Origin = (Start ? Start->GetActorLocation() : FVector::ZeroVector) + FVector(0.f, FactorySideOffsetCm, 0.f);
-		FHitResult Ground;
-		World->LineTraceSingleByChannel(Ground, Origin + FVector(0.f, 0.f, 500.f), Origin - FVector(0.f, 0.f, 2000.f), ECC_Visibility);
-		const FVector Base = Ground.bBlockingHit ? Ground.ImpactPoint : Origin;
-		const float PortHeight = UJ3DataSubsystem::Get()->GetConfigFloat("conveyor_height_cm", 50.f);
+		const FVector Origin = Start ? Start->GetActorLocation() : FVector::ZeroVector;
+		const AJ3ResourceNode* Node = nullptr;
+		for (TActorIterator<AJ3ResourceNode> It(World); It; ++It)
+		{
+			if (It->GetNodeId() == FactoryNodeId && (Node == nullptr || FVector::Dist2D(It->GetActorLocation(), Origin) < FVector::Dist2D(Node->GetActorLocation(), Origin)))
+			{
+				Node = *It;
+			}
+		}
+		if (Node == nullptr)
+		{
+			UE_LOG(LogJ3BuildVerify, Warning, TEXT("[공장 검증] 철광석 광맥이 없어 세우지 못했습니다"));
+			return;
+		}
 
 
-		// 제련 시설 → 입력 컨베이어 → 출력 컨베이어 → 창고 순서 (창고를 나중에 세워 "나중에 지은 쪽에서 다시 잇기"도 확인)
-		const FVector SmelterAt = Base;
-		const FVector StorageAt = Base + FVector(FactoryGapCm + 200.f, 0.f, 0.f);
+		// 채굴기 → (컨베이어) → 제련 시설 → (컨베이어) → 창고, 발전소에서 채굴기·제련 시설로 전기줄 (창고를 마지막에 세워 다시 잇기도 확인)
+		const FVector MinerAt = Node->GetActorLocation();
+		const FVector SmelterAt = GroundAt(World, MinerAt + FVector(FactoryGapCm, 0.f, 0.f));
+		const FVector StorageAt = GroundAt(World, SmelterAt + FVector(FactoryGapCm, 0.f, 0.f));
+		const FVector GeneratorAt = GroundAt(World, SmelterAt + FVector(0.f, FactoryGapCm, 0.f));
+		const FVector ItemUp(0.f, 0.f, ItemPortHeightCm);
+		const FVector Front(PortOffsetCm, 0.f, 0.f);
+		AJ3MinerBuilding* Miner = SpawnBuilding<AJ3MinerBuilding>(World, "miner_v1", MinerAt, nullptr);
 		AJ3SmelterBuilding* Smelter = SpawnBuilding<AJ3SmelterBuilding>(World, "smelter", SmelterAt, nullptr);
-		FJ3ConveyorPath InPath;
-		InPath.Start = SmelterAt + FVector(-100.f - FactoryGapCm, 0.f, PortHeight);
-		InPath.End = SmelterAt + FVector(-100.f, 0.f, PortHeight);
-		AJ3ConveyorBuilding* InConveyor = SpawnBuilding<AJ3ConveyorBuilding>(World, "conveyor", InPath.Start, &InPath);
-		FJ3ConveyorPath OutPath;
-		OutPath.Start = SmelterAt + FVector(100.f, 0.f, PortHeight);
-		OutPath.End = StorageAt + FVector(-100.f, 0.f, PortHeight);
-		SpawnBuilding<AJ3ConveyorBuilding>(World, "conveyor", OutPath.Start, &OutPath);
+		const FJ3ConveyorPath MinerToSmelter = StraightPath(MinerAt + Front + ItemUp, SmelterAt - Front + ItemUp);
+		SpawnBuilding<AJ3ConveyorBuilding>(World, "conveyor", MinerToSmelter.Start, &MinerToSmelter);
+		const FJ3ConveyorPath SmelterToStorage = StraightPath(SmelterAt + Front + ItemUp, StorageAt - Front + ItemUp);
+		SpawnBuilding<AJ3ConveyorBuilding>(World, "conveyor", SmelterToStorage.Start, &SmelterToStorage);
 		AJ3StorageBuilding* Storage = SpawnBuilding<AJ3StorageBuilding>(World, "storage", StorageAt, nullptr);
+		AJ3GeneratorBuilding* Generator = SpawnBuilding<AJ3GeneratorBuilding>(World, "generator_early", GeneratorAt, nullptr);
+		SpawnWire(World, Generator, Smelter);
+		SpawnWire(World, Generator, Miner);
 
 
-		// 전력: 제련 시설 옆 발전소에 통나무를 넣고 전기줄로 잇는다 (제련 시설은 전기로만 돈다)
-		AJ3GeneratorBuilding* Generator = SpawnBuilding<AJ3GeneratorBuilding>(World, "generator_early", SmelterAt + FVector(0.f, FactoryGapCm, 0.f), nullptr);
-		UJ3FactorySimSubsystem* PowerSim = World->GetSubsystem<UJ3FactorySimSubsystem>();
-		FJ3MachineState* GeneratorState = Generator != nullptr ? PowerSim->FindMachineMutable(Generator->GetMachineId()) : nullptr;
+		// 발전소 연료, 배터리로만 도는 제련 시설 (전기줄 없음, Power_System 3.2 임시 전원)
+		UJ3FactorySimSubsystem* Sim = World->GetSubsystem<UJ3FactorySimSubsystem>();
+		FJ3MachineState* GeneratorState = Generator != nullptr ? Sim->FindMachineMutable(Generator->GetMachineId()) : nullptr;
 		if (GeneratorState != nullptr)
 		{
 			GeneratorState->Fuel.ItemId = "log";
 			GeneratorState->Fuel.Count = FactoryFuelCount;
 		}
-		const FJ3BuildingDef* WireDef = UJ3DataSubsystem::Get()->GetBuilding("power_wire");
-		UClass* WireClass = WireDef != nullptr ? WireDef->BuildingClass.TryLoadClass<AJ3PowerWireBuilding>() : nullptr;
-		if (WireClass != nullptr && Generator != nullptr && Smelter != nullptr)
+		AJ3SmelterBuilding* BatterySmelter = SpawnBuilding<AJ3SmelterBuilding>(World, "smelter", GroundAt(World, SmelterAt - FVector(0.f, FactoryGapCm, 0.f)), nullptr);
+		FJ3MachineState* BatteryState = BatterySmelter != nullptr ? Sim->FindMachineMutable(BatterySmelter->GetMachineId()) : nullptr;
+		if (BatteryState != nullptr)
 		{
-			const FVector PortUp(0.f, 0.f, 200.f);
-			const FTransform WireAt(Generator->GetActorLocation() + PortUp);
-			AJ3PowerWireBuilding* Wire = World->SpawnActorDeferred<AJ3PowerWireBuilding>(WireClass, WireAt, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-			Wire->SetBuildingId("power_wire");
-			Wire->SetEnds(Generator, Smelter, Generator->GetActorLocation() + PortUp, Smelter->GetActorLocation() + PortUp);
-			Wire->FinishSpawning(WireAt);
+			BatteryState->Fuel.ItemId = "basic_battery";
+			BatteryState->Fuel.Count = FactoryBatteryCount;
+			BatteryState->Input.ItemId = "iron_ore";
+			BatteryState->Input.Count = FactoryBatteryOreCount;
 		}
-		UE_LOG(LogJ3BuildVerify, Display, TEXT("[공장 검증] 세움: 제련 %s, 입력 구간 %d, 창고 %s"), *GetNameSafe(Smelter), InConveyor != nullptr ? InConveyor->GetSegmentId() : -1, *GetNameSafe(Storage));
+		UE_LOG(LogJ3BuildVerify, Display, TEXT("[공장 검증] 세움: 광맥 %s, 채굴기 %s, 제련 %s, 창고 %s, 발전소 %s, 배터리 제련 %s"), *Node->GetName(), *GetNameSafe(Miner), *GetNameSafe(Smelter), *GetNameSafe(Storage), *GetNameSafe(Generator), *GetNameSafe(BatterySmelter));
 
 
-		// 입력 컨베이어 시작에 광석을 일정 간격으로 올린다
-		TWeakObjectPtr<AJ3ConveyorBuilding> WeakIn(InConveyor);
-		TSharedRef<int32> Sent = MakeShared<int32>(0);
-		FTimerHandle OreTimer;
-		World->GetTimerManager().SetTimer(OreTimer, [World, WeakIn, Sent]()
-		{
-			UJ3FactorySimSubsystem* Sim = World->GetSubsystem<UJ3FactorySimSubsystem>();
-			if (*Sent < FactoryOreCount && WeakIn.IsValid() && Sim->InsertItem(WeakIn->GetSegmentId(), UJ3DataSubsystem::Get()->GetItemTypeId("iron_ore")))
-			{
-				++(*Sent);
-			}
-		}, FactoryOreIntervalSec, true);
-
-
-		// 결과: 창고 안 주괴 수, 제련 시설 상태
+		// 결과: 창고 주괴, 각 기계 상태 (상태 번호는 EJ3MachineStatus 순서: 0 가동 1 출력 가득 2 재료 없음 3 연료 없음 4 자원 없음 5 전력 없음)
 		TWeakObjectPtr<AJ3StorageBuilding> WeakStorage(Storage);
+		TWeakObjectPtr<AJ3MinerBuilding> WeakMiner(Miner);
 		TWeakObjectPtr<AJ3SmelterBuilding> WeakSmelter(Smelter);
+		TWeakObjectPtr<AJ3GeneratorBuilding> WeakGenerator(Generator);
+		TWeakObjectPtr<AJ3SmelterBuilding> WeakBattery(BatterySmelter);
 		FTimerHandle LogTimer;
-		World->GetTimerManager().SetTimer(LogTimer, [WeakStorage, WeakSmelter, Sent]()
+		World->GetTimerManager().SetTimer(LogTimer, [WeakStorage, WeakMiner, WeakSmelter, WeakGenerator, WeakBattery]()
 		{
 			TArray<FJ3ItemStack> Stored;
 			if (WeakStorage.IsValid())
@@ -255,13 +297,48 @@ void J3BuildVerify::StartAutoFactory(UWorld* World)
 			{
 				Ingots += Stack.ItemId == "iron_ingot" ? Stack.Count : 0;
 			}
-			const int32 Status = WeakSmelter.IsValid() ? static_cast<int32>(WeakSmelter->GetView().Status) : -1;
-			const int32 SmelterOutput = WeakSmelter.IsValid() ? WeakSmelter->GetView().Output.Count : -1;
-			const UJ3FactorySimSubsystem* Sim = WeakSmelter.IsValid() ? WeakSmelter->GetWorld()->GetSubsystem<UJ3FactorySimSubsystem>() : nullptr;
-			const int32 OnBelts = Sim != nullptr ? Sim->CountItems() : -1;
-			UE_LOG(LogJ3BuildVerify, Display, TEXT("[공장 검증] 보낸 광석 %d, 창고 주괴 %d, 제련 시설 출력 칸 %d, 벨트 위 %d, 제련 시설 상태 %d"), *Sent, Ingots, SmelterOutput, OnBelts, Status);
+			auto StatusOf = [](const AJ3MachineBuilding* Machine) { return Machine != nullptr ? static_cast<int32>(Machine->GetView().Status) : -1; };
+			UE_LOG(LogJ3BuildVerify, Display, TEXT("[공장 검증] 창고 철 주괴 %d | 채굴기 상태 %d | 제련 시설 상태 %d | 발전소 축전 %.0f%% 연료 %d | 배터리 제련: 주괴 %d, 남은 광석 %d, 상태 %d"),
+				Ingots, StatusOf(WeakMiner.Get()), StatusOf(WeakSmelter.Get()),
+				WeakGenerator.IsValid() ? WeakGenerator->GetView().EnergyFraction * 100.f : -1.f, WeakGenerator.IsValid() ? WeakGenerator->GetView().Fuel.Count : -1,
+				WeakBattery.IsValid() ? WeakBattery->GetView().Output.Count : -1, WeakBattery.IsValid() ? WeakBattery->GetView().Input.Count : -1, StatusOf(WeakBattery.Get()));
 		}, FactoryLogDelaySec, false);
 	}, BuildDelaySec, false);
+}
+
+
+void J3BuildVerify::StartAutoFactoryClientLog(APlayerController* Controller)
+{
+	using namespace J3BuildVerifyPrivate;
+
+	if (CVarAutoFactory.GetValueOnGameThread() <= 0 || Controller == nullptr || !Controller->IsLocalController() || Controller->GetNetMode() != NM_Client)
+	{
+		return;
+	}
+	TWeakObjectPtr<APlayerController> WeakController(Controller);
+	FTimerHandle LogTimer;
+	Controller->GetWorld()->GetTimerManager().SetTimer(LogTimer, [WeakController]()
+	{
+		// 복제로 받은 것만 본다 (창고 내용은 보는 사람에게만 가므로 든 개수만)
+		UWorld* World = WeakController.IsValid() ? WeakController->GetWorld() : nullptr;
+		if (World == nullptr)
+		{
+			return;
+		}
+		int32 Stored = 0;
+		for (TActorIterator<AJ3StorageBuilding> It(World); It; ++It)
+		{
+			Stored += It->GetStoredCount();
+		}
+		TArray<FString> Machines;
+		for (TActorIterator<AJ3MachineBuilding> It(World); It; ++It)
+		{
+			Machines.Add(FString::Printf(TEXT("%s=%d"), *It->GetBuildingId().ToString(), static_cast<int32>(It->GetView().Status)));
+		}
+		Machines.Sort();
+		const UJ3FactorySimSubsystem* Sim = World->GetSubsystem<UJ3FactorySimSubsystem>();
+		UE_LOG(LogJ3BuildVerify, Display, TEXT("[공장 검증] 클라이언트: 창고 %d개 | 기계 상태 %s | 벨트 구간 %d, 벨트 위 %d"), Stored, *FString::Join(Machines, TEXT(" ")), Sim != nullptr ? Sim->GetSegments().Num() : -1, Sim != nullptr ? Sim->CountItems() : -1);
+	}, BuildDelaySec + FactoryLogDelaySec, false);
 }
 
 

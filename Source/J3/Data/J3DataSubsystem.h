@@ -40,6 +40,20 @@ public:
 	const FJ3ResourceNodeDef* GetResourceNode(FName NodeId) const;
 	const FJ3MachineDef* GetMachine(FName BuildingId) const;
 	const FJ3FuelDef* GetFuel(FName ItemId) const;
+	const FJ3BatteryDef* GetBattery(FName ItemId) const;
+
+	// 기계 계산용: 연료 한 개가 타는 시간, 배터리 한 개의 전력량 (아니면 0)
+	float GetFuelBurnSec(FName ItemId) const
+	{
+		const FJ3FuelDef* Fuel = GetFuel(ItemId);
+		return Fuel != nullptr ? Fuel->BurnSec : 0.f;
+	}
+
+	float GetBatteryEnergy(FName ItemId) const
+	{
+		const FJ3BatteryDef* Battery = GetBattery(ItemId);
+		return Battery != nullptr ? Battery->Energy : 0.f;
+	}
 
 	// 구역의 자원 배치 규칙 (노드 ID 순서로 정렬해 서버·세이브마다 같은 결과가 나오게 한다)
 	TArray<FJ3ResourceSpawnDef> GetResourceSpawns(FName Zone) const;

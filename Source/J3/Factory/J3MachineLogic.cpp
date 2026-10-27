@@ -59,6 +59,32 @@ namespace J3MachineLogicPrivate
 	}
 
 
+	// 이번 틱 전력: 전력망이 먼저, 모자라면 배터리 칸 (배터리 한 개를 꺼내 다 쓸 때까지 쓴다, 일회용)
+	bool ConsumePower(FJ3MachineState& State, float Amount, J3MachineLogic::FTryConsumePower TryConsumePower, J3MachineLogic::FBatteryEnergy BatteryEnergy, bool& bOutChanged)
+	{
+		if (TryConsumePower(Amount))
+		{
+			return true;
+		}
+		if (State.BatteryEnergyLeft < Amount && !State.Fuel.IsEmpty() && BatteryEnergy(State.Fuel.ItemId) > 0.f)
+		{
+			State.BatteryEnergyLeft += BatteryEnergy(State.Fuel.ItemId);
+			--State.Fuel.Count;
+			if (State.Fuel.Count <= 0)
+			{
+				State.Fuel.Clear();
+			}
+			bOutChanged = true;
+		}
+		if (State.BatteryEnergyLeft < Amount)
+		{
+			return false;
+		}
+		State.BatteryEnergyLeft -= Amount;
+		return true;
+	}
+
+
 	EJ3MachineStatus StepGenerator(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, J3MachineLogic::FFuelBurnSec FuelBurnSec, bool& bOutChanged)
 	{
 		// 축전이 가득 차면 연료를 아낀다 (쓰는 건물이 있으면 다시 발전)
@@ -80,7 +106,7 @@ namespace J3MachineLogicPrivate
 	}
 
 
-	EJ3MachineStatus StepMiner(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, J3MachineLogic::FTryConsumePower TryConsumePower, bool& bOutChanged)
+	EJ3MachineStatus StepMiner(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, J3MachineLogic::FTryConsumePower TryConsumePower, J3MachineLogic::FBatteryEnergy BatteryEnergy, bool& bOutChanged)
 	{
 		// 캘 자원이 없거나 출력이 차면 멈춘다 (진행도는 남겨 둔다)
 		if (State.ResourceItem.IsNone())
@@ -91,7 +117,7 @@ namespace J3MachineLogicPrivate
 		{
 			return EJ3MachineStatus::OutputFull;
 		}
-		if (Def.PowerUse > 0.f && !TryConsumePower(Def.PowerUse * DeltaSec))
+		if (Def.PowerUse > 0.f && !ConsumePower(State, Def.PowerUse * DeltaSec, TryConsumePower, BatteryEnergy, bOutChanged))
 		{
 			return EJ3MachineStatus::NoPower;
 		}
@@ -104,7 +130,7 @@ namespace J3MachineLogicPrivate
 	}
 
 
-	EJ3MachineStatus StepSmelter(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, J3MachineLogic::FFindRecipe FindRecipe, J3MachineLogic::FFuelBurnSec FuelBurnSec, J3MachineLogic::FTryConsumePower TryConsumePower, bool& bOutChanged)
+	EJ3MachineStatus StepSmelter(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, J3MachineLogic::FFindRecipe FindRecipe, J3MachineLogic::FFuelBurnSec FuelBurnSec, J3MachineLogic::FTryConsumePower TryConsumePower, J3MachineLogic::FBatteryEnergy BatteryEnergy, bool& bOutChanged)
 	{
 		// 입력 칸의 재료로 만들 레시피와 재료가 충분한지
 		const FJ3RecipeDef* Recipe = State.Input.IsEmpty() ? nullptr : FindRecipe(State.Input.ItemId);
@@ -120,8 +146,9 @@ namespace J3MachineLogicPrivate
 		}
 
 
-		// 연료 칸이 있는 기계는 탈 연료가 있어야 돈다 (가동 중에만 탄다)
-		if (Def.FuelCap > 0 && State.FuelLeftSec <= 0.f)
+		// 연료로 도는 기계(전기를 쓰지 않는 기계)는 탈 연료가 있어야 돈다 (가동 중에만 탄다). 전기 기계의 연료 칸은 배터리 칸
+		const bool bBurnsFuel = Def.FuelCap > 0 && Def.PowerUse <= 0.f;
+		if (bBurnsFuel && State.FuelLeftSec <= 0.f)
 		{
 			if (!BurnNextFuel(State, FuelBurnSec))
 			{
@@ -129,11 +156,11 @@ namespace J3MachineLogicPrivate
 			}
 			bOutChanged = true;
 		}
-		if (Def.PowerUse > 0.f && !TryConsumePower(Def.PowerUse * DeltaSec))
+		if (Def.PowerUse > 0.f && !ConsumePower(State, Def.PowerUse * DeltaSec, TryConsumePower, BatteryEnergy, bOutChanged))
 		{
 			return EJ3MachineStatus::NoPower;
 		}
-		if (Def.FuelCap > 0)
+		if (bBurnsFuel)
 		{
 			State.FuelLeftSec -= DeltaSec;
 		}
@@ -158,7 +185,7 @@ namespace J3MachineLogicPrivate
 
 namespace J3MachineLogic
 {
-	bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec, FTryConsumePower TryConsumePower)
+	bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec, FTryConsumePower TryConsumePower, FBatteryEnergy BatteryEnergy)
 	{
 		using namespace J3MachineLogicPrivate;
 
@@ -170,15 +197,21 @@ namespace J3MachineLogic
 		}
 		else if (Def.IsMiner())
 		{
-			Status = StepMiner(State, Def, DeltaSec, TryConsumePower, bChanged);
+			Status = StepMiner(State, Def, DeltaSec, TryConsumePower, BatteryEnergy, bChanged);
 		}
 		else
 		{
-			Status = StepSmelter(State, Def, DeltaSec, FindRecipe, FuelBurnSec, TryConsumePower, bChanged);
+			Status = StepSmelter(State, Def, DeltaSec, FindRecipe, FuelBurnSec, TryConsumePower, BatteryEnergy, bChanged);
 		}
 		bChanged |= Status != State.Status;
 		State.Status = Status;
 		return bChanged;
+	}
+
+
+	bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec, FTryConsumePower TryConsumePower)
+	{
+		return Step(State, Def, DeltaSec, FindRecipe, FuelBurnSec, TryConsumePower, [](FName ItemId) { return 0.f; });
 	}
 
 
@@ -190,12 +223,19 @@ namespace J3MachineLogic
 
 	int32 Insert(FJ3MachineState& State, const FJ3MachineDef& Def, FName ItemId, int32 Count, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec)
 	{
+		return Insert(State, Def, ItemId, Count, FindRecipe, FuelBurnSec, [](FName Item) { return 0.f; });
+	}
+
+
+	int32 Insert(FJ3MachineState& State, const FJ3MachineDef& Def, FName ItemId, int32 Count, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec, FBatteryEnergy BatteryEnergy)
+	{
 		using namespace J3MachineLogicPrivate;
 
-		// 연료가 먼저 (나뭇가지처럼 재료이자 연료인 것은 연료 칸으로), 그다음 레시피 재료
+		// 연료 칸 먼저 (전기 기계는 배터리, 아니면 연료. 나뭇가지처럼 재료이자 연료인 것은 연료 칸으로), 그다음 레시피 재료
 		EJ3MachineSlot Slot = EJ3MachineSlot::Input;
 		int32 Cap = 0;
-		if (Def.FuelCap > 0 && FuelBurnSec(ItemId) > 0.f)
+		const bool bFuelFits = Def.PowerUse > 0.f ? BatteryEnergy(ItemId) > 0.f : FuelBurnSec(ItemId) > 0.f;
+		if (Def.FuelCap > 0 && bFuelFits)
 		{
 			Slot = EJ3MachineSlot::Fuel;
 			Cap = Def.FuelCap;

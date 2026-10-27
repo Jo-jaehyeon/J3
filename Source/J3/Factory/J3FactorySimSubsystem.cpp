@@ -223,8 +223,9 @@ void UJ3FactorySimSubsystem::StepMachines()
 		const int32 MachineId = State.Id;
 		bool bChanged = J3MachineLogic::Step(State, *Def, FixedStepSec,
 			[BuildingId](FName Item) { return FindMachineRecipe(BuildingId, Item); },
-			[Data](FName Item) { const FJ3FuelDef* Fuel = Data->GetFuel(Item); return Fuel != nullptr ? Fuel->BurnSec : 0.f; },
-			[this, MachineId](float Amount) { return TryConsumePower(MachineId, Amount); });
+			[Data](FName Item) { return Data->GetFuelBurnSec(Item); },
+			[this, MachineId](float Amount) { return TryConsumePower(MachineId, Amount); },
+			[Data](FName Item) { return Data->GetBatteryEnergy(Item); });
 		if (bChanged)
 		{
 			NotifyMachineChanged(State.Id);
@@ -532,7 +533,8 @@ void UJ3FactorySimSubsystem::TransferBeltsAndMachines()
 			const FName BuildingId = State->BuildingId;
 			bAccepted = J3MachineLogic::Insert(*State, *Def, ItemId, 1,
 				[BuildingId](FName Item) { return FindMachineRecipe(BuildingId, Item); },
-				[Data](FName Item) { const FJ3FuelDef* Fuel = Data->GetFuel(Item); return Fuel != nullptr ? Fuel->BurnSec : 0.f; }) == 1;
+				[Data](FName Item) { return Data->GetFuelBurnSec(Item); },
+				[Data](FName Item) { return Data->GetBatteryEnergy(Item); }) == 1;
 			if (bAccepted)
 			{
 				NotifyMachineChanged(State->Id);

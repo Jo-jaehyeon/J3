@@ -18,9 +18,12 @@ namespace J3BuildVerify
 	// 로컬 플레이어 컨트롤러가 BeginPlay에서 부른다
 	void StartAutoBuild(APlayerController* Controller);
 
-	// j3.Debug.AutoFactory: 서버가 시작 지점 옆에 [컨베이어 → 제련 시설 → 컨베이어 → 창고]를 직접 세우고 광석을 흘려 보낸 뒤,
-	// 창고에 들어온 주괴 수를 로그에 남긴다 (단계 5 기계↔컨베이어 검증, 입력 없이)
+	// j3.Debug.AutoFactory: 서버가 가장 가까운 철광석 광맥에 [채굴기 v1 → 컨베이어 → 제련 시설 → 컨베이어 → 창고]와 발전소·전기줄,
+	// 배터리로만 도는 제련 시설을 직접 세우고, 창고 주괴 수와 기계 상태를 로그에 남긴다 (단계 5 완료 기준 검증, 입력 없이)
 	void StartAutoFactory(UWorld* World);
+
+	// 클라이언트: 같은 시각에 이 PC가 보는 결과(창고 개수, 기계 상태, 벨트 위 아이템)를 남겨 서버와 비교한다
+	void StartAutoFactoryClientLog(APlayerController* Controller);
 
 	// 이 월드(서버 또는 클라이언트)의 건물 개수·해시를 로그에 남긴다
 	void LogBuildState(UWorld* World, const TCHAR* Reason);

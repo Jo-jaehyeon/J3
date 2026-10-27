@@ -59,6 +59,9 @@ struct FJ3MachineState
 	float EnergyStored = 0.f;
 	int32 SentEnergyPercent = INDEX_NONE;
 
+	// 전기를 쓰는 기계: 꺼내 쓰는 중인 배터리의 남은 전력 (전력망이 없을 때만 쓴다)
+	float BatteryEnergyLeft = 0.f;
+
 	EJ3MachineStatus Status = EJ3MachineStatus::NoInput;
 };
 

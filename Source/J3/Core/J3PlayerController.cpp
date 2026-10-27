@@ -157,6 +157,7 @@ void AJ3PlayerController::BeginPlay()
 	{
 		J3BuildVerify::StartAutoFactory(GetWorld());
 	}
+	J3BuildVerify::StartAutoFactoryClientLog(this);
 
 
 	// 입력은 이 PC에서 조작하는 컨트롤러에만 등록한다 (서버에 있는 다른 플레이어의 컨트롤러 제외)

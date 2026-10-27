@@ -21,14 +21,20 @@ namespace J3MachineLogic
 	// 전기를 쓰는 기계가 이번 틱에 쓸 전력을 전력망에서 받는다 (모자라면 false, 받지 않는다)
 	using FTryConsumePower = TFunctionRef<bool(float Amount)>;
 
+	// 배터리 아이템 한 개의 전력량 (배터리가 아니면 0)
+	using FBatteryEnergy = TFunctionRef<float(FName ItemId)>;
+
 	// DeltaSec만큼 진행한다. 칸 내용이나 상태가 바뀌면 true (복제할 때를 알린다).
 	// 발전소는 연료를 태워 축전하고, 전기를 쓰는 기계는 돌 때만 전력을 받는다 (못 받으면 NoPower로 멈춘다)
+	// 전력망에서 못 받으면 배터리 칸의 배터리로 돈다 (Power_System 3.2: 전력망이 우선, 배터리는 임시 전원)
+	J3_API bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec, FTryConsumePower TryConsumePower, FBatteryEnergy BatteryEnergy);
 	J3_API bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec, FTryConsumePower TryConsumePower);
 
 	// 전력과 상관없는 경우 (전기를 쓰지 않는 기계, 테스트)
 	J3_API bool Step(FJ3MachineState& State, const FJ3MachineDef& Def, float DeltaSec, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec);
 
-	// 아이템을 알맞은 칸(연료 → 연료 칸, 레시피 재료 → 입력 칸)에 넣는다. 넣은 개수를 돌려준다 (0이면 못 넣음)
+	// 아이템을 알맞은 칸(연료·배터리 → 연료 칸, 레시피 재료 → 입력 칸)에 넣는다. 넣은 개수를 돌려준다 (0이면 못 넣음)
+	J3_API int32 Insert(FJ3MachineState& State, const FJ3MachineDef& Def, FName ItemId, int32 Count, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec, FBatteryEnergy BatteryEnergy);
 	J3_API int32 Insert(FJ3MachineState& State, const FJ3MachineDef& Def, FName ItemId, int32 Count, FFindRecipe FindRecipe, FFuelBurnSec FuelBurnSec);
 
 	// 칸에서 최대 MaxCount개를 꺼낸다

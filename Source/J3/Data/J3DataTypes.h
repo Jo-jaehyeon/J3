@@ -268,7 +268,7 @@ struct FJ3MachineDef
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	float CycleSec = 1.f;
 
-	// 칸별 최대 개수 (0이면 그 칸이 없다). 출력이 차면 멈춘다
+	// 칸별 최대 개수 (0이면 그 칸이 없다). 출력이 차면 멈춘다. 전기를 쓰는 기계의 연료 칸은 배터리 칸이다
 	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
 	int32 OutputCap = 0;
 
@@ -330,6 +330,20 @@ struct FJ3FuelDef
 };
 
 
+// batteries.csv 한 행: 배터리 아이템 한 개에 든 전력량 (Power_System 3.2: 발전소가 없을 때 건물에 붙이는 임시 전원). id는 items.csv의 id
+USTRUCT(BlueprintType)
+struct FJ3BatteryDef
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	FName Id;
+
+	UPROPERTY(BlueprintReadOnly, Category = "J3|Data")
+	float Energy = 0.f;
+};
+
+
 // 한 번 읽어 들인 전체 게임 데이터. 검증을 통과한 것만 서브시스템에 반영된다.
 struct FJ3GameData
 {
@@ -341,6 +355,7 @@ struct FJ3GameData
 	TMap<FName, FJ3ResourceSpawnDef> ResourceSpawns;
 	TMap<FName, FJ3MachineDef> Machines;
 	TMap<FName, FJ3FuelDef> Fuels;
+	TMap<FName, FJ3BatteryDef> Batteries;
 	TMap<FName, float> Config;
 
 	// 컨베이어 위 아이템 종류 번호 (2바이트). 아이템 ID를 이름순으로 정렬해 1부터 매긴다.
@@ -357,6 +372,7 @@ struct FJ3GameData
 	TMap<FName, int32> ResourceSpawnLines;
 	TMap<FName, int32> MachineLines;
 	TMap<FName, int32> FuelLines;
+	TMap<FName, int32> BatteryLines;
 
 	// 서버·클라 데이터 일치 확인용 (원본 파일 내용 기준)
 	FString Hash;

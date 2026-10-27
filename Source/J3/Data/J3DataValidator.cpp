@@ -94,6 +94,10 @@ void FJ3DataValidator::CheckReferences(const FJ3GameData& Data, FJ3DataReport& R
 	{
 		CheckItem(Data, Report, TEXT("fuels.csv"), LineOf(Data.FuelLines, Pair.Key), TEXT("id"), Pair.Key);
 	}
+	for (const TPair<FName, FJ3BatteryDef>& Pair : Data.Batteries)
+	{
+		CheckItem(Data, Report, TEXT("batteries.csv"), LineOf(Data.BatteryLines, Pair.Key), TEXT("id"), Pair.Key);
+	}
 
 
 	// 건물의 건설 재료·해방 조건

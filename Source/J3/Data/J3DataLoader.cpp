@@ -190,7 +190,7 @@ bool FJ3DataLoader::LoadAll(const FString& DataDir, FJ3GameData& OutData, FJ3Dat
 {
 	// 표 읽기. 표 하나가 실패해도 나머지 표의 오류까지 한 번에 보여 주려고 끝까지 읽는다.
 	TArray<FString> RawContents;
-	RawContents.SetNum(9);
+	RawContents.SetNum(10);
 	LoadItems(DataDir, OutData, Report, RawContents[0]);
 	LoadRecipes(DataDir, OutData, Report, RawContents[1]);
 	LoadBuildings(DataDir, OutData, Report, RawContents[2]);
@@ -200,6 +200,7 @@ bool FJ3DataLoader::LoadAll(const FString& DataDir, FJ3GameData& OutData, FJ3Dat
 	LoadResourceSpawns(DataDir, OutData, Report, RawContents[6]);
 	LoadMachines(DataDir, OutData, Report, RawContents[7]);
 	LoadFuels(DataDir, OutData, Report, RawContents[8]);
+	LoadBatteries(DataDir, OutData, Report, RawContents[9]);
 
 
 	// 컨베이어용 아이템 종류 번호
@@ -458,6 +459,32 @@ void FJ3DataLoader::LoadFuels(const FString& DataDir, FJ3GameData& OutData, FJ3D
 			Reader.Error(TEXT("burn_sec는 0보다 커야 합니다"));
 		}
 		AddUnique(OutData.Fuels, &OutData.FuelLines, MoveTemp(Def), Reader);
+	}
+}
+
+
+void FJ3DataLoader::LoadBatteries(const FString& DataDir, FJ3GameData& OutData, FJ3DataReport& Report, FString& OutRaw)
+{
+	using namespace J3DataLoaderPrivate;
+
+	FJ3CsvTable Table;
+	if (!OpenTable(Table, DataDir, TEXT("batteries.csv"), { "id", "energy" }, Report, OutRaw))
+	{
+		return;
+	}
+
+
+	for (const FJ3CsvTable::FRow& Row : Table.GetRows())
+	{
+		FRowReader Reader{ Table, Row, Report };
+		FJ3BatteryDef Def;
+		Def.Id = FName(*Reader.Required("id"));
+		Def.Energy = Reader.OptionalFloat("energy", -1.f);
+		if (Def.Energy <= 0.f)
+		{
+			Reader.Error(TEXT("energy는 0보다 커야 합니다"));
+		}
+		AddUnique(OutData.Batteries, &OutData.BatteryLines, MoveTemp(Def), Reader);
 	}
 }
 

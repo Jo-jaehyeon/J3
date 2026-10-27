@@ -162,6 +162,12 @@ const FJ3FuelDef* UJ3DataSubsystem::GetFuel(FName ItemId) const
 }
 
 
+const FJ3BatteryDef* UJ3DataSubsystem::GetBattery(FName ItemId) const
+{
+	return Data.Batteries.Find(ItemId);
+}
+
+
 TArray<FJ3ResourceSpawnDef> UJ3DataSubsystem::GetResourceSpawns(FName Zone) const
 {
 	TArray<FJ3ResourceSpawnDef> Result;
